@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<Workspace>
+  <ConfigDictionary>
+    
+    
+    
+  <CurrentConfigs><Project>Cloud_Read_Humiture/MiCOKit-LPC5410x</Project><Project>Bootloader/MiCOKit-LPC5410x</Project><Project>COM.Apple.HomeKit/MiCOKit-LPC5410x</Project><Project>Cloud_RGB_LED/MiCOKit-LPC5410x</Project><Project>COM.MXCHIP.SPP/MiCOKit-LPC5410x</Project><Project>COM.MXCHIP.BASIC/MiCOKit-LPC5410x</Project><Project>Cloud_RGB_Humiture/MiCOKit-LPC5410x</Project><Project>MiCOKit_Enjoy/MiCOKit-LPC5410x</Project></CurrentConfigs><CurrentProj>Cloud_RGB_LED</CurrentProj><OverviewSelected>0</OverviewSelected></ConfigDictionary>
+  <Desktop>
+    <Static>
+      <Workspace>
+        <ColumnWidths>
+          
+          
+          
+          
+        <Column0>299</Column0><Column1>27</Column1><Column2>27</Column2><Column3>27</Column3></ColumnWidths>
+      </Workspace>
+      <Build>
+        
+        
+        
+        
+      <ColumnWidth0>23</ColumnWidth0><ColumnWidth1>1393</ColumnWidth1><ColumnWidth2>371</ColumnWidth2><ColumnWidth3>92</ColumnWidth3></Build>
+      <TerminalIO/>
+      <Debug-Log>
+        
+        
+      <ColumnWidth0>22</ColumnWidth0><ColumnWidth1>1859</ColumnWidth1></Debug-Log>
+    <Tool-Output/></Static>
+    <Windows>
+      
+      
+    <Wnd0>
+        <Tabs>
+          <Tab>
+            <Identity>TabID-25997-29470</Identity>
+            <TabName>Workspace</TabName>
+            <Factory>Workspace</Factory>
+            <Session>
+              
+            <NodeDict><ExpandedNode>&lt;ws&gt;</ExpandedNode><ExpandedNode>Cloud_RGB_Humiture</ExpandedNode><ExpandedNode>Cloud_RGB_Humiture/Application</ExpandedNode><ExpandedNode>Cloud_RGB_Humiture/Application/User</ExpandedNode><ExpandedNode>Cloud_RGB_Humiture/Board</ExpandedNode><ExpandedNode>Cloud_RGB_LED</ExpandedNode><ExpandedNode>Cloud_RGB_LED/Application</ExpandedNode><ExpandedNode>Cloud_RGB_LED/Application/User</ExpandedNode><ExpandedNode>Cloud_RGB_LED/Board</ExpandedNode><ExpandedNode>Cloud_RGB_LED/Board/MiCOKit-LPC5410x</ExpandedNode><ExpandedNode>Cloud_Read_Humiture</ExpandedNode><ExpandedNode>MiCOKit_Enjoy</ExpandedNode><ExpandedNode>MiCOKit_Enjoy/Board</ExpandedNode></NodeDict></Session>
+          </Tab>
+        </Tabs>
+        
+      <SelectedTab>0</SelectedTab></Wnd0><Wnd2>
+        <Tabs>
+          <Tab>
+            <Identity>TabID-841-29532</Identity>
+            <TabName>Build</TabName>
+            <Factory>Build</Factory>
+            <Session/>
+          </Tab>
+          <Tab>
+            <Identity>TabID-18448-29816</Identity>
+            <TabName>Debug Log</TabName>
+            <Factory>Debug-Log</Factory>
+            <Session/>
+          </Tab>
+        <Tab><Identity>TabID-25996-3011</Identity><TabName>Tool Output</TabName><Factory>Tool-Output</Factory><Session/></Tab></Tabs>
+        
+      <SelectedTab>0</SelectedTab></Wnd2></Windows>
+    <Editor>
+      
+      
+      
+      
+    <Pane><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\..\..\Board\MiCOKit-LPC5410x\platform.c</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd><XPos2>0</XPos2><YPos2>71</YPos2><SelStart2>3511</SelStart2><SelEnd2>3511</SelEnd2></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\..\..\Demos\Cloud_RGB_LED\User\ZigbeeControlBridge.c</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd><XPos2>0</XPos2><YPos2>59</YPos2><SelStart2>0</SelStart2><SelEnd2>0</SelEnd2></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\..\..\Demos\Cloud_RGB_LED\User\user_uart.c</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd><XPos2>0</XPos2><YPos2>150</YPos2><SelStart2>0</SelStart2><SelEnd2>0</SelEnd2></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\..\..\Demos\Cloud_RGB_LED\AppFramework\MICOAppEntrance.c</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd><XPos2>0</XPos2><YPos2>96</YPos2><SelStart2>3835</SelStart2><SelEnd2>3835</SelEnd2></Tab><ActiveTab>3</ActiveTab></Pane><ActivePane>0</ActivePane><Sizes><Pane><X>1000000</X><Y>1000000</Y></Pane></Sizes><SplitMode>1</SplitMode></Editor>
+    <Positions>
+      
+      
+      
+      
+      
+    <Top><Row0><Sizes><Toolbar-05F4D640><key>iaridepm.enu1</key></Toolbar-05F4D640></Sizes></Row0><Row1><Sizes/></Row1></Top><Left><Row0><Sizes><Wnd0><Rect><Top>-2</Top><Left>-2</Left><Bottom>204</Bottom><Right>390</Right><x>-2</x><y>-2</y><xscreen>106</xscreen><yscreen>373</yscreen><sizeHorzCX>121560</sizeHorzCX><sizeHorzCY>709125</sizeHorzCY><sizeVertCX>449541</sizeVertCX><sizeVertCY>391635</sizeVertCY></Rect></Wnd0></Sizes></Row0></Left><Right><Row0><Sizes/></Row0></Right><Bottom><Row0><Sizes><Wnd2><Rect><Top>-2</Top><Left>-2</Left><Bottom>277</Bottom><Right>874</Right><x>-2</x><y>-2</y><xscreen>876</xscreen><yscreen>279</yscreen><sizeHorzCX>1004587</sizeHorzCX><sizeHorzCY>530418</sizeHorzCY><sizeVertCX>121560</sizeVertCX><sizeVertCY>709125</sizeVertCY></Rect></Wnd2></Sizes></Row0></Bottom><Float><Sizes/></Float></Positions>
+  </Desktop>
+</Workspace>
+
+
