@@ -1,0 +1,15 @@
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2_2\arm\bin\armproc.dll" 
+
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2_2\arm\bin\armstlink.dll" 
+
+"E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Projects\LPC5410x\COM.Apple.HomeKit\EWARM\MiCOKit-LPC5410x\Exe\COM.MXCHIP.SPP.out" 
+
+--plugin "C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2_2\arm\bin\armbat.dll" 
+
+--device_macro "C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2_2\arm\config\debugger\ST\STM32F4xx.dmac" 
+
+--flash_loader "C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2_2\arm\config\flashloader\ST\FlashSTM32F411xE.board" 
+
+
+
+
