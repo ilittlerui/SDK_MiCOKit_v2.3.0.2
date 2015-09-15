@@ -60,12 +60,12 @@ OSStatus user_main( app_context_t * const app_context )
 
     hsb2rgb_led_init(); 	// rgb led init		初始化 RGB
 
-    err = user_uartInit();		// uart init		初始化 user_UART
-    user_log("User uart Init");
-    require_noerr_action( err, exit, user_log("ERROR: user_uartInit err = %d.", err) );
+    //err = user_uartInit();		// uart init		初始化 user_UART
+    //user_log("User uart Init");
+    //require_noerr_action( err, exit, user_log("ERROR: user_uartInit err = %d.", err) );
 
-    eZCB_Init();			//ZigBee ControlBridge Init		初始化zigbee协调器
-    user_log("ZCB Init");
+    //eZCB_Init();			//ZigBee ControlBridge Init		初始化zigbee协调器
+    //user_log("ZCB Init");
 
     uint8_t cloudMsg[128];
  

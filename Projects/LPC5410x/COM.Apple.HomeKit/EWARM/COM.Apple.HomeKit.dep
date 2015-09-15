@@ -6,10 +6,6 @@
   <configuration>
     <name>MiCOKit-LPC5410x</name>
     <outputs/>
-    <forcedrebuild>
-      <name>[MULTI_TOOL]</name>
-      <tool>ILINK</tool>
-    </forcedrebuild>
   </configuration>
 </project>
 
