@@ -164,13 +164,15 @@ static void PDM_HandleLoadRequest(void *pvUser, uint16_t u16Length, void *pvMess
     //    char *pcSQL;
     //    int iError = 1;
     //    int iSentRecords = 0;
-    //
+    //		
+    //	  #pragma pack(1)
     //    struct _tPDMLoadRequest
     //    {
     //        uint16_t    u16RecordID;
-    //    } __attribute__((__packed__)) *psPDMLoadRecordRequest = (struct _tPDMLoadRequest *)pvMessage;
+    //    }*psPDMLoadRecordRequest = (struct _tPDMLoadRequest *)pvMessage;
     //
     //#define PDM_BLOCK_SIZE 128
+    //	  #pragma pack(1)
     //    struct _tPDMLoadResponse
     //    {
     //        uint8_t     u8Status;
@@ -180,7 +182,7 @@ static void PDM_HandleLoadRequest(void *pvUser, uint16_t u16Length, void *pvMess
     //        uint32_t    u32CurrentBlock;
     //        uint32_t    u32BlockSize;
     //        uint8_t     au8Data[PDM_BLOCK_SIZE];
-    //    } __attribute__((__packed__)) sLoadRecordResponse;
+    //    }sLoadRecordResponse;
     //
     //    memset(&sLoadRecordResponse, 0, sizeof(struct _tPDMLoadResponse));
     //
@@ -276,7 +278,7 @@ static void PDM_HandleSaveRequest(void *pvUser, uint16_t u16Length, void *pvMess
     //        E_PDM_INSERT,
     //        E_PDM_UPDATE
     //    } eAction = E_PDM_UNKNOWN;
-    //
+    //    #pragma pack(1)
     //    struct _tPDMSaveRequest
     //    {
     //        uint16_t    u16RecordID;
@@ -285,12 +287,12 @@ static void PDM_HandleSaveRequest(void *pvUser, uint16_t u16Length, void *pvMess
     //        uint32_t    u32CurrentBlock;
     //        uint32_t    u32BlockSize;
     //        uint8_t     au8Data[PDM_BLOCK_SIZE];
-    //    } __attribute__((__packed__)) *psPDMSaveRecordRequest = (struct _tPDMSaveRequest *)pvMessage;
-    //
+    //    }*psPDMSaveRecordRequest = (struct _tPDMSaveRequest *)pvMessage;
+    //    #pragma pack(1)
     //    struct _tPDMSaveResponse
     //    {
     //        uint8_t     u8Status;
-    //    } __attribute__((__packed__)) sSaveRecordResponse;
+    //    }sSaveRecordResponse;
     //
     //    // Default error
     //    sSaveRecordResponse.u8Status = 1;

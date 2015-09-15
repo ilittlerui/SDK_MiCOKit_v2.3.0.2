@@ -43,7 +43,7 @@ extern "C" {
 #define SL_ESC_CHAR     0x02
 #define SL_END_CHAR     0x03
 
-#define SL_MAX_MESSAGE_LENGTH 128
+#define SL_MAX_MESSAGE_LENGTH 256
 
 #define SL_MAX_MESSAGE_QUEUES 3
 

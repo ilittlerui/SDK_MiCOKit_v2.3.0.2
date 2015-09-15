@@ -307,8 +307,13 @@ void uartRecv_thread(void *inContext)
             //1.get the date from ControlBridge
             if (eSL_ReadMessage(&sMessage.u16Type, &sMessage.u16Length, SL_MAX_MESSAGE_LENGTH, sMessage.au8Message,(unsigned char*)cmdbuff[i],strlen(cmdbuff[i])) == E_SL_OK)
             {
-                user_uart_log("message get,type:%d",sMessage.u16Type);	//消息类型
-
+                user_uart_log("message get,type:%d,length:%d",sMessage.u16Type,sMessage.u16Length);	//消息类型
+				unsigned short ii = 0;
+				for(ii =0 ; ii<sMessage.u16Length;ii++)
+				{
+					printf("%2x ",sMessage.au8Message[ii]);
+				}
+				printf("\n");
                 switch(sMessage.u16Type)
                 {
                     case E_SL_MSG_NODE_CLUSTER_LIST:

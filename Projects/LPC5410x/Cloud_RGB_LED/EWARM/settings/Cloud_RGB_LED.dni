@@ -1,5 +1,5 @@
 [DebugChecksum]
-Checksum=-653778505
+Checksum=-2102736322
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -94,9 +94,6 @@ Count=0
 LoggingEnabled=_ 0
 LogFile=_ ""
 Category=_ 0
-[TermIOLog]
-LoggingEnabled=_ 0
-LogFile=_ ""
 [Aliases]
 Count=0
 SuppressDialog=0
@@ -114,3 +111,6 @@ ShowTiming=1
 Frequency=10000
 Probe0=I0
 ProbeSetup0=2 1 1 2 0 0
+[TermIOLog]
+LoggingEnabled=_ 0
+LogFile=_ ""

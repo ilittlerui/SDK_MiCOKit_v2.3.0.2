@@ -357,6 +357,7 @@ teZcbStatus eZCB_StartNetwork(void)
 ****************************************************************************/
 teZcbStatus eZCB_SetPermitJoining(uint8_t u8Interval)
 {
+#pragma pack(1)
     struct _PermitJoiningMessage
     {
         uint16_t    u16TargetAddress;
@@ -388,6 +389,7 @@ teZcbStatus eZCB_SetPermitJoining(uint8_t u8Interval)
 ****************************************************************************/
 teZcbStatus eZCB_GetPermitJoining(uint8_t *pu8Status)
 {
+#pragma pack(1)
     struct _GetPermitJoiningMessage
     {
         uint8_t     u8Status;
@@ -455,12 +457,14 @@ teZcbStatus eZCB_AuthenticateDevice(uint64_t u64IEEEAddress, uint8_t *pau8LinkKe
                                     uint8_t *pau8NetworkKey, uint8_t *pau8MIC,
                                     uint64_t *pu64TrustCenterAddress, uint8_t *pu8KeySequenceNumber)
 {
+#pragma pack(1)
     struct _AuthenticateRequest
     {
         uint64_t    u64IEEEAddress;
         uint8_t     au8LinkKey[16];
     } sAuthenticateRequest;
 
+#pragma pack(1)
     struct _AuthenticateResponse
     {
         uint64_t    u64IEEEAddress;
@@ -605,6 +609,7 @@ teZcbStatus eZCB_MatchDescriptorRequest(uint16_t u16TargetAddress, uint16_t u16P
 ****************************************************************************/
 teZcbStatus eZCB_LeaveRequest(tsZCB_Node *psZCBNode)
 {
+#pragma pack(1)
     struct _ManagementLeaveRequest
     {
         uint16_t    u16TargetAddress;
@@ -613,6 +618,7 @@ teZcbStatus eZCB_LeaveRequest(tsZCB_Node *psZCBNode)
         uint8_t     bRejoin;
     } sManagementLeaveRequest;
 
+#pragma pack(1)
     struct _ManagementLeaveResponse
     {
         uint8_t     u8SequenceNo;
@@ -677,12 +683,14 @@ done:
 ****************************************************************************/
 teZcbStatus eZCB_NeighbourTableRequest(tsZCB_Node *psZCBNode)
 {
+#pragma pack(1)
     struct _ManagementLQIRequest
     {
         uint16_t    u16TargetAddress;
         uint8_t     u8StartIndex;
     } sManagementLQIRequest;
 
+	#pragma pack(1)
     struct _ManagementLQIResponse
     {
         uint8_t     u8SequenceNo;
@@ -690,6 +698,7 @@ teZcbStatus eZCB_NeighbourTableRequest(tsZCB_Node *psZCBNode)
         uint8_t     u8NeighbourTableSize;
         uint8_t     u8TableEntries;
         uint8_t     u8StartIndex;
+		#pragma pack(1)
         struct
         {
             uint16_t    u16ShortAddress;
@@ -697,6 +706,7 @@ teZcbStatus eZCB_NeighbourTableRequest(tsZCB_Node *psZCBNode)
             uint64_t    u64IEEEAddress;
             uint8_t     u8Depth;
             uint8_t     u8LQI;
+			#pragma pack(1)
             struct
             {
                 unsigned    uDeviceType : 2;
@@ -857,6 +867,7 @@ done:
 ****************************************************************************/
 teZcbStatus eZCB_IEEEAddressRequest(tsZCB_Node *psZCBNode)
 {
+	#pragma pack(1)
     struct _IEEEAddressRequest
     {
         uint16_t    u16TargetAddress;
@@ -864,7 +875,7 @@ teZcbStatus eZCB_IEEEAddressRequest(tsZCB_Node *psZCBNode)
         uint8_t     u8RequestType;
         uint8_t     u8StartIndex;
     } sIEEEAddressRequest;
-
+	#pragma pack(1)
     struct _IEEEAddressResponse
     {
         uint8_t     u8SequenceNo;
@@ -934,11 +945,13 @@ done:
 ****************************************************************************/
 teZcbStatus eZCB_NodeDescriptorRequest(tsZCB_Node *psZCBNode)
 {
+	#pragma pack(1)
     struct _NodeDescriptorRequest
     {
         uint16_t    u16TargetAddress;
     } sNodeDescriptorRequest;
-
+	
+	#pragma pack(1)
     struct _tNodeDescriptorResponse
     {
         uint8_t     u8SequenceNo;
@@ -1009,12 +1022,14 @@ done:
 ****************************************************************************/
 teZcbStatus eZCB_SimpleDescriptorRequest(tsZCB_Node *psZCBNode, uint8_t u8Endpoint)
 {
+	#pragma pack(1)
     struct _SimpleDescriptorRequest
     {
         uint16_t    u16TargetAddress;
         uint8_t     u8Endpoint;
     } sSimpleDescriptorRequest;
 
+	#pragma pack(1)
     struct _tSimpleDescriptorResponse
     {
         uint8_t     u8SequenceNo;
@@ -1108,6 +1123,7 @@ teZcbStatus eZCB_ReadAttributeRequest(tsZCB_Node *psZCBNode, uint16_t u16Cluster
                                       uint8_t u8Direction, uint8_t u8ManufacturerSpecific, uint16_t u16ManufacturerID,
                                       uint16_t u16AttributeID, void *pvData)
 {
+	#pragma pack(1)
     struct _ReadAttributeRequest
     {
         uint8_t     u8TargetAddressMode;
@@ -1122,6 +1138,7 @@ teZcbStatus eZCB_ReadAttributeRequest(tsZCB_Node *psZCBNode, uint16_t u16Cluster
         uint16_t    au16Attribute[1];
     } sReadAttributeRequest;
 
+	#pragma pack(1)
     struct _ReadAttributeResponseData
     {
         uint8_t     u8Type;
@@ -1134,6 +1151,7 @@ teZcbStatus eZCB_ReadAttributeRequest(tsZCB_Node *psZCBNode, uint16_t u16Cluster
         } uData;
     } *psReadAttributeResponseData = NULL;
 
+	#pragma pack(1)
     struct _ReadAttributeResponseAddressed
     {
         uint8_t     u8SequenceNo;
@@ -1145,6 +1163,7 @@ teZcbStatus eZCB_ReadAttributeRequest(tsZCB_Node *psZCBNode, uint16_t u16Cluster
         struct _ReadAttributeResponseData sData;
     }*psReadAttributeResponseAddressed = NULL;
 
+	#pragma pack(1)
     struct _ReadAttributeResponseUnaddressed
     {
         uint8_t     u8SequenceNo;
@@ -1316,6 +1335,7 @@ teZcbStatus eZCB_WriteAttributeRequest(tsZCB_Node *psZCBNode, uint16_t u16Cluste
                                        uint8_t u8Direction, uint8_t u8ManufacturerSpecific, uint16_t u16ManufacturerID,
                                        uint16_t u16AttributeID, teZCL_ZCLAttributeType eType, void *pvData)
 {
+	#pragma pack(1)
     struct _WriteAttributeRequest
     {
         uint8_t     u8TargetAddressMode;//
@@ -1338,6 +1358,7 @@ teZcbStatus eZCB_WriteAttributeRequest(tsZCB_Node *psZCBNode, uint16_t u16Cluste
         } uData;
     } sWriteAttributeRequest;
 
+	#pragma pack(1)
     struct _WriteAttributeResponse
     {
         /**\todo handle default response properly */
@@ -1361,6 +1382,7 @@ teZcbStatus eZCB_WriteAttributeRequest(tsZCB_Node *psZCBNode, uint16_t u16Cluste
     }*psWriteAttributeResponse = NULL;
 
 
+	#pragma pack(1)
     struct _DataIndication
     {
         /**\todo handle data indication properly */
@@ -1563,6 +1585,7 @@ done:
 ****************************************************************************/
 teZcbStatus eZCB_AddGroupMembership(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress)
 {
+	#pragma pack(1)
     struct _AddGroupMembershipRequest
     {
         uint8_t     u8TargetAddressMode;
@@ -1572,6 +1595,7 @@ teZcbStatus eZCB_AddGroupMembership(tsZCB_Node *psZCBNode, uint16_t u16GroupAddr
         uint16_t    u16GroupAddress;
     } sAddGroupMembershipRequest;
 
+	#pragma pack(1)
     struct _sAddGroupMembershipResponse
     {
         uint8_t     u8SequenceNo;
@@ -1652,6 +1676,7 @@ done:
 ****************************************************************************/
 teZcbStatus eZCB_RemoveGroupMembership(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress)
 {
+	#pragma pack(1)
     struct _RemoveGroupMembershipRequest
     {
         uint8_t     u8TargetAddressMode;
@@ -1660,7 +1685,7 @@ teZcbStatus eZCB_RemoveGroupMembership(tsZCB_Node *psZCBNode, uint16_t u16GroupA
         uint8_t     u8DestinationEndpoint;
         uint16_t    u16GroupAddress;
     } sRemoveGroupMembershipRequest;
-
+	#pragma pack(1)
     struct _sRemoveGroupMembershipResponse
     {
         uint8_t     u8SequenceNo;
@@ -1742,6 +1767,7 @@ done:
 ****************************************************************************/
 teZcbStatus eZCB_GetGroupMembership(tsZCB_Node *psZCBNode)
 {
+	#pragma pack(1)
     struct _GetGroupMembershipRequest
     {
         uint8_t     u8TargetAddressMode;
@@ -1752,6 +1778,7 @@ teZcbStatus eZCB_GetGroupMembership(tsZCB_Node *psZCBNode)
         uint16_t    au16GroupList[0];
     } sGetGroupMembershipRequest;
 
+	#pragma pack(1)
     struct _sGetGroupMembershipResponse
     {
         uint8_t     u8SequenceNo;
@@ -1848,6 +1875,7 @@ done:
 ****************************************************************************/
 teZcbStatus eZCB_ClearGroupMembership(tsZCB_Node *psZCBNode)
 {
+	#pragma pack(1)
     struct _ClearGroupMembershipRequest
     {
         uint8_t     u8TargetAddressMode;
@@ -1896,6 +1924,7 @@ done:
 ****************************************************************************/
 teZcbStatus eZCB_RemoveScene(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, uint8_t u8SceneID)
 {
+	#pragma pack(1)
     struct _RemoveSceneRequest
     {
         uint8_t     u8TargetAddressMode;
@@ -1906,6 +1935,7 @@ teZcbStatus eZCB_RemoveScene(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, ui
         uint8_t     u8SceneID;
     } sRemoveSceneRequest;
 
+	#pragma pack(1)
     struct _sStoreSceneResponse
     {
         uint8_t     u8SequenceNo;
@@ -2003,6 +2033,7 @@ done:
 ****************************************************************************/
 teZcbStatus eZCB_StoreScene(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, uint8_t u8SceneID)
 {
+	#pragma pack(1)
     struct _StoreSceneRequest
     {
         uint8_t     u8TargetAddressMode;
@@ -2013,6 +2044,7 @@ teZcbStatus eZCB_StoreScene(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, uin
         uint8_t     u8SceneID;
     } sStoreSceneRequest;
 
+	#pragma pack(1)
     struct _sStoreSceneResponse
     {
         uint8_t     u8SequenceNo;
@@ -2111,6 +2143,7 @@ done:
 teZcbStatus eZCB_RecallScene(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, uint8_t u8SceneID)
 {
     uint8_t         u8SequenceNo;
+	#pragma pack(1)
     struct _RecallSceneRequest
     {
         uint8_t     u8TargetAddressMode;
@@ -2189,6 +2222,7 @@ done:
 ****************************************************************************/
 teZcbStatus eZCB_GetSceneMembership(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, uint8_t *pu8NumScenes, uint8_t **pau8Scenes)
 {
+	#pragma pack(1)
     struct _GetSceneMembershipRequest
     {
         uint8_t     u8TargetAddressMode;
@@ -2198,6 +2232,7 @@ teZcbStatus eZCB_GetSceneMembership(tsZCB_Node *psZCBNode, uint16_t u16GroupAddr
         uint16_t    u16GroupAddress;
     } sGetSceneMembershipRequest;
 
+	#pragma pack(1)
     struct _sGetSceneMembershipResponse
     {
         uint8_t     u8SequenceNo;
@@ -2361,6 +2396,7 @@ void ZCB_HandleNodeClusterList(void *pvUser, uint16_t u16Length, void *pvMessage
 {
     int iPosition;
     int iCluster = 0;
+#pragma pack(1)
     struct _tsClusterList
     {
         uint8_t     u8Endpoint;
@@ -2412,6 +2448,7 @@ void ZCB_HandleNodeClusterAttributeList(void *pvUser, uint16_t u16Length, void *
 {
     int iPosition;
     int iAttribute = 0;
+	#pragma pack(1)
     struct _tsClusterAttributeList
     {
         uint8_t     u8Endpoint;
@@ -2461,6 +2498,7 @@ void ZCB_HandleNodeCommandIDList(void *pvUser, uint16_t u16Length, void *pvMessa
 {
     int iPosition;
     int iCommand = 0;
+	#pragma pack(1)
     struct _tsCommandIDList
     {
         uint8_t     u8Endpoint;
@@ -2508,6 +2546,7 @@ void ZCB_HandleRestartProvisioned(void *pvUser, uint16_t u16Length, void *pvMess
 {
     const char *pcStatus = NULL;
 
+	#pragma pack(1)
     struct _tsWarmRestart
     {
         uint8_t     u8Status;
@@ -2544,6 +2583,7 @@ void ZCB_HandleRestartFactoryNew(void *pvUser, uint16_t u16Length, void *pvMessa
 {
     const char *pcStatus = NULL;
 
+	#pragma pack(1)
     struct _tsWarmRestart
     {
         uint8_t     u8Status;
@@ -2579,6 +2619,7 @@ void ZCB_HandleRestartFactoryNew(void *pvUser, uint16_t u16Length, void *pvMessa
 ****************************************************************************/
 void ZCB_HandleNetworkJoined(void *pvUser, uint16_t u16Length, void *pvMessage)
 {
+	#pragma pack(1)
     struct _tsNetworkJoinedFormedShort
     {
         uint8_t     u8Status;
@@ -2587,6 +2628,7 @@ void ZCB_HandleNetworkJoined(void *pvUser, uint16_t u16Length, void *pvMessage)
         uint8_t     u8Channel;
     } *psMessageShort = (struct _tsNetworkJoinedFormedShort *)pvMessage;
 
+	#pragma pack(1)
     struct _tsNetworkJoinedFormedExtended
     {
         uint8_t     u8Status;
@@ -2707,6 +2749,7 @@ void ZCB_HandleNetworkJoined(void *pvUser, uint16_t u16Length, void *pvMessage)
 void ZCB_HandleDeviceAnnounce(void *pvUser, uint16_t u16Length, void *pvMessage)
 {
     tsZCB_Node *psZCBNode;
+	#pragma pack(1)
     struct _tsDeviceAnnounce
     {
         uint16_t    u16ShortAddress;
@@ -2764,6 +2807,7 @@ void ZCB_HandleDeviceAnnounce(void *pvUser, uint16_t u16Length, void *pvMessage)
 ****************************************************************************/
 void ZCB_HandleDeviceLeave(void *pvUser, uint16_t u16Length, void *pvMessage)
 {
+	#pragma pack(1)
     struct _tsDeviceLeave
     {
         uint64_t    u64IEEEAddress;
@@ -2812,6 +2856,7 @@ void ZCB_HandleDeviceLeave(void *pvUser, uint16_t u16Length, void *pvMessage)
 void ZCB_HandleMatchDescriptorResponse(void *pvUser, uint16_t u16Length, void *pvMessage)
 {
     tsZCB_Node *psZCBNode;
+	#pragma pack(1)
     struct _tMatchDescriptorResponse
     {
         uint8_t     u8SequenceNo;
@@ -2891,6 +2936,7 @@ void ZCB_HandleAttributeReport(void *pvUser, uint16_t u16Length, void *pvMessage
 {
     teZcbStatus eStatus = E_ZCB_ERROR;
 
+	#pragma pack(1)
     struct _tsAttributeReport
     {
         uint8_t     u8SequenceNo;

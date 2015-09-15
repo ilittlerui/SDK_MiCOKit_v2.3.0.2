@@ -464,7 +464,7 @@ teZcbStatus eZCB_NodeAddEndpoint(tsZCB_Node *psZCBNode, uint8_t u8Endpoint, uint
         }
     }
 
-    user_ZBNetwork_log("Creating new endpoint %d\n", u8Endpoint);
+    user_ZBNetwork_log("Creating new endpoint %d", u8Endpoint);
 
     psNewEndpoint = realloc(psZCBNode->pasEndpoints, sizeof(tsZCB_NodeEndpoint) * (psZCBNode->u32NumEndpoints+1));
 

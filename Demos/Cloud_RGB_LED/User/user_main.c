@@ -35,6 +35,7 @@
 #define user_log(M, ...) custom_log("USER", M, ##__VA_ARGS__)
 #define user_log_trace() custom_log_trace("USER")
 
+#pragma pack(show)
 
 /* user main function, called by AppFramework after system init done && wifi
  * station on in user_main thread.
@@ -59,13 +60,12 @@ OSStatus user_main( app_context_t * const app_context )
     require(app_context, exit);
 
     hsb2rgb_led_init(); 	// rgb led init		初始化 RGB
+    err = user_uartInit();		// uart init		初始化 user_UART
+    user_log("User uart Init");
+    require_noerr_action( err, exit, user_log("ERROR: user_uartInit err = %d.", err) );
 
-    //err = user_uartInit();		// uart init		初始化 user_UART
-    //user_log("User uart Init");
-    //require_noerr_action( err, exit, user_log("ERROR: user_uartInit err = %d.", err) );
-
-    //eZCB_Init();			//ZigBee ControlBridge Init		初始化zigbee协调器
-    //user_log("ZCB Init");
+    eZCB_Init();			//ZigBee ControlBridge Init		初始化zigbee协调器
+    user_log("ZCB Init");
 
     uint8_t cloudMsg[128];
  
