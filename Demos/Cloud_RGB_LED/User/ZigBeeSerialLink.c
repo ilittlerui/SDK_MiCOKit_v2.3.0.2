@@ -125,8 +125,8 @@ teSL_Status eSL_Init()
 
 /****************************************************************************
 * Function	: eSL_SendMessage
-* Description	:
-* Input Para	:
+* Description	:	·¢ËÍÏûÏ¢
+* Input Para	: u16Type,  u16Length, *pvMessage,*pu8SequenceNo
 * Output Para	:
 * Return Value:
 ****************************************************************************/

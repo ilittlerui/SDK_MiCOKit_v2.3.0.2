@@ -2396,7 +2396,8 @@ void ZCB_HandleNodeClusterList(void *pvUser, uint16_t u16Length, void *pvMessage
 {
     int iPosition;
     int iCluster = 0;
-#pragma pack(1)
+	
+	#pragma pack(1)
     struct _tsClusterList
     {
         uint8_t     u8Endpoint;
@@ -2406,9 +2407,9 @@ void ZCB_HandleNodeClusterList(void *pvUser, uint16_t u16Length, void *pvMessage
 
     psClusterList->u16ProfileID = ntohs(psClusterList->u16ProfileID);
 
-    user_controlbridge_log("Cluster list for endpoint %d, profile ID 0x%4X",
-                           psClusterList->u8Endpoint,
-                           psClusterList->u16ProfileID);
+//    user_controlbridge_log("Cluster list for endpoint %d, profile ID 0x%4X",
+//                           psClusterList->u8Endpoint,
+//                           psClusterList->u16ProfileID);
 
     mico_rtos_lock_mutex(&sZCB_Network.sNodes.sLock);
 
@@ -2460,10 +2461,10 @@ void ZCB_HandleNodeClusterAttributeList(void *pvUser, uint16_t u16Length, void *
     psClusterAttributeList->u16ProfileID = ntohs(psClusterAttributeList->u16ProfileID);
     psClusterAttributeList->u16ClusterID = ntohs(psClusterAttributeList->u16ClusterID);
 
-    user_controlbridge_log("Cluster attribute list for endpoint %d, cluster 0x%04X, profile ID 0x%4X\n",
-                           psClusterAttributeList->u8Endpoint,
-                           psClusterAttributeList->u16ClusterID,
-                           psClusterAttributeList->u16ProfileID);
+//    user_controlbridge_log("Cluster attribute list for endpoint %d, cluster 0x%04X, profile ID 0x%4X\n",
+//                           psClusterAttributeList->u8Endpoint,
+//                           psClusterAttributeList->u16ClusterID,
+//                           psClusterAttributeList->u16ProfileID);
 
     mico_rtos_lock_mutex(&sZCB_Network.sNodes.sLock);
 
@@ -2510,10 +2511,10 @@ void ZCB_HandleNodeCommandIDList(void *pvUser, uint16_t u16Length, void *pvMessa
     psCommandIDList->u16ProfileID = ntohs(psCommandIDList->u16ProfileID);
     psCommandIDList->u16ClusterID = ntohs(psCommandIDList->u16ClusterID);
 
-    user_controlbridge_log("Command ID list for endpoint %d, cluster 0x%04X, profile ID 0x%4X\n",
-                           psCommandIDList->u8Endpoint,
-                           psCommandIDList->u16ClusterID,
-                           psCommandIDList->u16ProfileID);
+//    user_controlbridge_log("Command ID list for endpoint %d, cluster 0x%04X, profile ID 0x%4X\n",
+//                           psCommandIDList->u8Endpoint,
+//                           psCommandIDList->u16ClusterID,
+//                           psCommandIDList->u16ProfileID);
 
     mico_rtos_lock_mutex(&sZCB_Network.sNodes.sLock);
 
@@ -3055,22 +3056,22 @@ void ZCB_HandleAttributeReport(void *pvUser, uint16_t u16Length, void *pvMessage
 ****************************************************************************/
 teZcbStatus eZCB_ConfigureControlBridge(void)
 {
-#define CONFIGURATION_INTERVAL 500000
+#define CONFIGURATION_INTERVAL 500
     /* Set up configuration */
     switch (eStartMode)
     {
         case(E_START_COORDINATOR):
             user_controlbridge_log("Starting control bridge as HA coordinator");
-            eZCB_SetDeviceType(E_MODE_COORDINATOR);
+            eZCB_SetDeviceType(E_MODE_COORDINATOR);		//设置设备类型为 coordinator
             mico_thread_msleep(CONFIGURATION_INTERVAL);
 
-            eZCB_SetChannelMask(eChannel);
+            eZCB_SetChannelMask(eChannel);				//设置信道
             mico_thread_msleep(CONFIGURATION_INTERVAL);
 
-            eZCB_SetExtendedPANID(u64PanID);
+            eZCB_SetExtendedPANID(u64PanID);			//设置扩展 PAN ID
             mico_thread_msleep(CONFIGURATION_INTERVAL);
 
-            eZCB_StartNetwork();
+            eZCB_StartNetwork();						//启动网络
             mico_thread_msleep(CONFIGURATION_INTERVAL);
             break;
 

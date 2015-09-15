@@ -75,12 +75,12 @@ void DBG_PrintNode(tsZCB_Node *psNode)
 {
     int i, j, k;
 
-    user_ZBNetwork_log("Node Short Address: 0x%04X, IEEE Address: 0x%016llX MAC Capability 0x%02X Device ID 0x%04X\n",
-                       psNode->u16ShortAddress,
-                       (unsigned long long int)psNode->u64IEEEAddress,
-                       psNode->u8MacCapability,
-                       psNode->u16DeviceID
-                      );
+//    user_ZBNetwork_log("Node Short Address: 0x%04X, IEEE Address: 0x%016llX MAC Capability 0x%02X Device ID 0x%04X",
+//                       psNode->u16ShortAddress,
+//                       (unsigned long long int)psNode->u64IEEEAddress,
+//                       psNode->u8MacCapability,
+//                       psNode->u16DeviceID
+//                      );
     for (i = 0; i < psNode->u32NumEndpoints; i++)
     {
         const char *pcProfileName = NULL;
@@ -448,7 +448,7 @@ teZcbStatus eZCB_NodeAddEndpoint(tsZCB_Node *psZCBNode, uint8_t u8Endpoint, uint
     tsZCB_NodeEndpoint *psNewEndpoint;
     int i;
 
-    user_ZBNetwork_log("Add Endpoint %d, profile 0x%04X to node 0x%04X", u8Endpoint, u16ProfileID, psZCBNode->u16ShortAddress);
+    //user_ZBNetwork_log("Add Endpoint %d, profile 0x%04X to node 0x%04X", u8Endpoint, u16ProfileID, psZCBNode->u16ShortAddress);
 
     for (i = 0; i < psZCBNode->u32NumEndpoints; i++)
     {
@@ -464,7 +464,7 @@ teZcbStatus eZCB_NodeAddEndpoint(tsZCB_Node *psZCBNode, uint8_t u8Endpoint, uint
         }
     }
 
-    user_ZBNetwork_log("Creating new endpoint %d", u8Endpoint);
+    //user_ZBNetwork_log("Creating new endpoint %d", u8Endpoint);
 
     psNewEndpoint = realloc(psZCBNode->pasEndpoints, sizeof(tsZCB_NodeEndpoint) * (psZCBNode->u32NumEndpoints+1));
 
@@ -519,7 +519,7 @@ teZcbStatus eZCB_NodeAddCluster(tsZCB_Node *psZCBNode, uint8_t u8Endpoint, uint1
     }
     if (!psEndpoint)
     {
-        user_ZBNetwork_log("Endpoint not found\n");
+        user_ZBNetwork_log("Endpoint not found");
         return E_ZCB_UNKNOWN_ENDPOINT;
     }
 
@@ -527,7 +527,8 @@ teZcbStatus eZCB_NodeAddCluster(tsZCB_Node *psZCBNode, uint8_t u8Endpoint, uint1
     {
         if (psEndpoint->pasClusters[i].u16ClusterID == u16ClusterID)
         {
-            user_ZBNetwork_log("Duplicate Cluster ID\n");
+            //user_ZBNetwork_log("Duplicate %d th Cluster ID:%d",i,u16ClusterID);
+			
             return E_ZCB_OK;
         }
     }
