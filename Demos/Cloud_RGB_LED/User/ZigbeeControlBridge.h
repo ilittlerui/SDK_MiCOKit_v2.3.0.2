@@ -1,7 +1,7 @@
 
 /***************************************************************************************
 ****************************************************************************************
-* FILE		: ZigbeeControlBridge.h
+* FILE		: ZigBeeControlBridge.h
 * Description	:
 *
 * Copyright (c) 2015 by XXX. All Rights Reserved.
@@ -16,7 +16,7 @@
 #ifndef _ZIGBEECONTROLBRIDGE_H_
 #define _ZIGBEECONTROLBRIDGE_H_
 #include <stdint.h>
-#include "ZigbeeConstant.h"
+#include "ZigBeeConstant.h"
 #include "mico_rtos.h"
 #ifdef __cplusplus
 extern "C" {
@@ -459,6 +459,8 @@ tsZCB_Node *psZCB_NodeOldestComms(void);
 teZcbStatus eZCB_AddNode(uint16_t u16ShortAddress, uint64_t u64IEEEAddress, uint16_t u16DeviceID, uint8_t u8MacCapability, tsZCB_Node **ppsZCBNode);
 
 teZcbStatus eZCB_RemoveNode(tsZCB_Node *psZCBNode);
+
+teZcbStatus eZCB_HandleZcbEvent(tsZcbEvent *psEvent);
 
 /****************************************************************************/
 /***        Local Functions                                               ***/

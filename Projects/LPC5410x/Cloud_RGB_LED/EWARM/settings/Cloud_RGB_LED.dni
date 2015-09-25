@@ -1,5 +1,5 @@
 [DebugChecksum]
-Checksum=-1680731336
+Checksum=-962348704
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -112,5 +112,6 @@ mode=0
 [Breakpoints2]
 Count=0
 [Aliases]
-Count=0
+A0=_ "C:\Users\bobo\Documents\WICED\Wiced-SDK-2.4.0\WICED-SDK\Wiced\RTOS\FreeRTOS\ver7.1.0\Source\portable\IAR\ARM_CM4F\portasm.s" ""
+Count=1
 SuppressDialog=0

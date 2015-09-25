@@ -8,19 +8,19 @@
         
       <ColumnWidth0>23</ColumnWidth0><ColumnWidth1>1858</ColumnWidth1></Debug-Log>
       <Build>
-        <ColumnWidth0>23</ColumnWidth0>
-        <ColumnWidth1>1393</ColumnWidth1>
-        <ColumnWidth2>371</ColumnWidth2>
-        <ColumnWidth3>92</ColumnWidth3>
-      </Build>
+        
+        
+        
+        
+      <ColumnWidth0>23</ColumnWidth0><ColumnWidth1>1393</ColumnWidth1><ColumnWidth2>371</ColumnWidth2><ColumnWidth3>92</ColumnWidth3></Build>
       <Workspace>
         <ColumnWidths>
           
           
           
           
-        <Column0>197</Column0><Column1>27</Column1><Column2>27</Column2><Column3>27</Column3></ColumnWidths>
-      </Workspace>
+        <Column0>313</Column0><Column1>27</Column1><Column2>27</Column2><Column3>27</Column3></ColumnWidths>
+      <PreferedWindows><Position>1</Position><ScreenPosX>0</ScreenPosX><ScreenPosY>0</ScreenPosY><Windows><Window><Factory>SourceBrowser</Factory></Window></Windows></PreferedWindows></Workspace>
       <Disassembly>
         <col-names>
           
@@ -29,12 +29,12 @@
         <col-widths>
           
           
-        <item>500</item><item>20</item></col-widths>
+        <item>612</item><item>20</item></col-widths>
         <DisasmHistory><item>00019E77</item></DisasmHistory>
         
         
       <ShowCodeCoverage>1</ShowCodeCoverage><ShowInstrProfiling>1</ShowInstrProfiling></Disassembly>
-    </Static>
+    <SourceBrowser><PreferedWindows><Position>1</Position><ScreenPosX>0</ScreenPosX><ScreenPosY>0</ScreenPosY><Windows/></PreferedWindows></SourceBrowser></Static>
     <Windows>
       
       
@@ -58,18 +58,6 @@
       <SelectedTab>0</SelectedTab></Wnd0><Wnd1>
         <Tabs>
           <Tab>
-            <Identity>TabID-29120-8088</Identity>
-            <TabName>Workspace</TabName>
-            <Factory>Workspace</Factory>
-            <Session>
-              
-            <NodeDict><ExpandedNode>Cloud_RGB_LED</ExpandedNode></NodeDict></Session>
-          </Tab>
-        </Tabs>
-        
-      <SelectedTab>0</SelectedTab></Wnd1><Wnd2>
-        <Tabs>
-          <Tab>
             <Identity>TabID-7100-8091</Identity>
             <TabName>Disassembly</TabName>
             <Factory>Disassembly</Factory>
@@ -77,20 +65,20 @@
           </Tab>
         </Tabs>
         
-      <SelectedTab>0</SelectedTab></Wnd2></Windows>
+      <SelectedTab>0</SelectedTab></Wnd1><Wnd2><Tabs><Tab><Identity>TabID-23498-15297</Identity><TabName>Workspace</TabName><Factory>Workspace</Factory><Session><NodeDict><ExpandedNode>Cloud_RGB_LED</ExpandedNode><ExpandedNode>Cloud_RGB_LED/Application</ExpandedNode><ExpandedNode>Cloud_RGB_LED/Application/User</ExpandedNode></NodeDict></Session></Tab></Tabs><SelectedTab>0</SelectedTab></Wnd2></Windows>
     <Editor>
       
       
       
       
-    <Pane><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\..\..\Board\MiCOKit-LPC5410x\platform.c</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd><XPos2>0</XPos2><YPos2>71</YPos2><SelStart2>3511</SelStart2><SelEnd2>3511</SelEnd2></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\..\..\Demos\Cloud_RGB_LED\User\ZigbeeControlBridge.c</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd><XPos2>0</XPos2><YPos2>2362</YPos2><SelStart2>0</SelStart2><SelEnd2>0</SelEnd2></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\..\..\Demos\Cloud_RGB_LED\User\user_uart.c</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd><XPos2>0</XPos2><YPos2>336</YPos2><SelStart2>0</SelStart2><SelEnd2>0</SelEnd2></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\..\..\Demos\Cloud_RGB_LED\AppFramework\MICOAppEntrance.c</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd><XPos2>0</XPos2><YPos2>96</YPos2><SelStart2>3806</SelStart2><SelEnd2>3806</SelEnd2></Tab><ActiveTab>3</ActiveTab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\..\..\Demos\Cloud_RGB_LED\User\user_main.c</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd><XPos2>0</XPos2><YPos2>24</YPos2><SelStart2>1414</SelStart2><SelEnd2>1414</SelEnd2></Tab></Pane><ActivePane>0</ActivePane><Sizes><Pane><X>1000000</X><Y>1000000</Y></Pane></Sizes><SplitMode>1</SplitMode></Editor>
+    <Pane><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\..\..\Demos\Cloud_RGB_LED\AppFramework\MICOAppEntrance.c</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd><XPos2>0</XPos2><YPos2>95</YPos2><SelStart2>3668</SelStart2><SelEnd2>3668</SelEnd2></Tab><ActiveTab>0</ActiveTab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\..\..\Demos\Cloud_RGB_LED\User\user_uart.c</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd><XPos2>0</XPos2><YPos2>408</YPos2><SelStart2>13466</SelStart2><SelEnd2>13466</SelEnd2></Tab></Pane><ActivePane>0</ActivePane><Sizes><Pane><X>1000000</X><Y>1000000</Y></Pane></Sizes><SplitMode>1</SplitMode></Editor>
     <Positions>
       
       
       
       
       
-    <Top><Row0><Sizes><Toolbar-044CAB08><key>iaridepm.enu1</key></Toolbar-044CAB08></Sizes></Row0><Row1><Sizes><Toolbar-217A2208><key>debuggergui.enu1</key></Toolbar-217A2208></Sizes></Row1><Row2><Sizes><Toolbar-217A7E38><key>armjlink.enu1</key></Toolbar-217A7E38></Sizes></Row2></Top><Left><Row0><Sizes><Wnd1><Rect><Top>-2</Top><Left>-2</Left><Bottom>667</Bottom><Right>271</Right><x>-2</x><y>-2</y><xscreen>200</xscreen><yscreen>201</yscreen><sizeHorzCX>104167</sizeHorzCX><sizeHorzCY>201605</sizeHorzCY><sizeVertCX>142188</sizeVertCX><sizeVertCY>671013</sizeVertCY></Rect></Wnd1></Sizes></Row0></Left><Right><Row0><Sizes><Wnd2><Rect><Top>-2</Top><Left>-2</Left><Bottom>667</Bottom><Right>738</Right><x>-2</x><y>-2</y><xscreen>200</xscreen><yscreen>201</yscreen><sizeHorzCX>104167</sizeHorzCX><sizeHorzCY>201605</sizeHorzCY><sizeVertCX>385417</sizeVertCX><sizeVertCY>671013</sizeVertCY></Rect></Wnd2></Sizes></Row0></Right><Bottom><Row0><Sizes><Wnd0><Rect><Top>-2</Top><Left>-2</Left><Bottom>237</Bottom><Right>1922</Right><x>-2</x><y>-2</y><xscreen>1924</xscreen><yscreen>239</yscreen><sizeHorzCX>1002083</sizeHorzCX><sizeHorzCY>239719</sizeHorzCY><sizeVertCX>104167</sizeVertCX><sizeVertCY>201605</sizeVertCY></Rect></Wnd0></Sizes></Row0></Bottom><Float><Sizes/></Float></Positions>
+    <Top><Row0><Sizes><Toolbar-061FC6D0><key>iaridepm.enu1</key></Toolbar-061FC6D0></Sizes></Row0><Row1><Sizes><Toolbar-3394E280><key>debuggergui.enu1</key></Toolbar-3394E280><Toolbar-285FFDC0><key>armjlink.enu1</key></Toolbar-285FFDC0></Sizes></Row1></Top><Left><Row0><Sizes><Wnd2><Rect><Top>-2</Top><Left>-2</Left><Bottom>732</Bottom><Right>387</Right><x>-2</x><y>-2</y><xscreen>200</xscreen><yscreen>200</yscreen><sizeHorzCX>104167</sizeHorzCX><sizeHorzCY>200602</sizeHorzCY><sizeVertCX>202604</sizeVertCX><sizeVertCY>736209</sizeVertCY></Rect></Wnd2></Sizes></Row0></Left><Right><Row0><Sizes><Wnd1><Rect><Top>-2</Top><Left>-2</Left><Bottom>732</Bottom><Right>396</Right><x>-2</x><y>-2</y><xscreen>440</xscreen><yscreen>381</yscreen><sizeHorzCX>229167</sizeHorzCX><sizeHorzCY>382146</sizeHorzCY><sizeVertCX>207292</sizeVertCX><sizeVertCY>736209</sizeVertCY></Rect></Wnd1></Sizes></Row0></Right><Bottom><Row0><Sizes><Wnd0><Rect><Top>-2</Top><Left>-2</Left><Bottom>196</Bottom><Right>1922</Right><x>-2</x><y>-2</y><xscreen>1924</xscreen><yscreen>198</yscreen><sizeHorzCX>1002083</sizeHorzCX><sizeHorzCY>198596</sizeHorzCY><sizeVertCX>229167</sizeVertCX><sizeVertCY>382146</sizeVertCY></Rect></Wnd0></Sizes></Row0></Bottom><Float><Sizes/></Float></Positions>
   </Desktop>
 </Project>
 

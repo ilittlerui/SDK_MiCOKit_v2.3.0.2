@@ -47,6 +47,7 @@
 
 uint8_t u8SL_CalculateCRC(uint16_t u16Type, uint16_t u16Length, uint8_t *pu8Data);
 
+tsSL_Message  sMessage;
 //static void *pvReaderThread(tsUtilsThread *psThreadInfo);
 
 //static void *pvCallbackHandlerThread(tsUtilsThread *psThreadInfo);
@@ -63,18 +64,38 @@ uint8_t u8SL_CalculateCRC(uint16_t u16Type, uint16_t u16Length, uint8_t *pu8Data
 /***        Local Variables                                               ***/
 /****************************************************************************/
 
-static tsSerialLink sSerialLink;
+//static tsSerialLink sSerialLink;
+
+
+typedef enum
+{
+    EMPTY,
+    START_FLAG,
+    UNKNOWN
+} AckBufStat;
+
+typedef enum
+{
+    INVALID_DATA=-1,
+    NO_END_CODE = 0,
+    NO_START_AND_END_CODE=1,
+    NORMAL_CODE
+} AckParserErrorCode;
+
+#define CMD_ACK_BUF_NUM 3
+static char cmdACKbuff[CMD_ACK_BUF_NUM][64];
+static uint8_t cmdACKnum=0;
 
 
 /****************************************************************************/
 /***        Exported Functions                                            ***/
 /****************************************************************************/
-
+int recv_buff_parser_ACK(char*buff);
 
 
 teSL_Status eSL_Init()
 {
-    int i;
+    //int i;
 
     //    if (eSerial_Init(cpSerialDevice, u32BaudRate, &sSerialLink.iSerialFd) != E_SERIAL_OK)
     //    {
@@ -82,19 +103,19 @@ teSL_Status eSL_Init()
     //    }
     //
     /* Initialise serial link mutex */
-    mico_rtos_init_mutex(&sSerialLink.mutex);
+    //mico_rtos_init_mutex(&sSerialLink.mutex);
 
     /* Initialise message callbacks */
     //    pthread_mutex_init(&sSerialLink.sCallbacks.mutex, NULL);
     //    sSerialLink.sCallbacks.psListHead = NULL;
     //
     /* Initialise message wait queue */
-    for (i = 0; i < SL_MAX_MESSAGE_QUEUES; i++)
-    {
-        mico_rtos_init_mutex(&sSerialLink.asReaderMessageQueue[i].mutex);
-        //pthread_cond_init(&sSerialLink.asReaderMessageQueue[i].cond_data_available, NULL);
-        sSerialLink.asReaderMessageQueue[i].u16Type = 0;
-    }
+    //for (i = 0; i < SL_MAX_MESSAGE_QUEUES; i++)
+    //{
+    //    mico_rtos_init_mutex(&sSerialLink.asReaderMessageQueue[i].mutex);
+    //    //pthread_cond_init(&sSerialLink.asReaderMessageQueue[i].cond_data_available, NULL);
+    //    sSerialLink.asReaderMessageQueue[i].u16Type = 0;
+    //}
     //
     //    /* Initialise callback queue */
     //    if (eUtils_QueueCreate(&sSerialLink.sCallbackQueue, SL_MAX_CALLBACK_QUEUES, 0) != E_UTILS_OK)
@@ -136,9 +157,7 @@ teSL_Status eSL_SendMessage(uint16_t u16Type, uint16_t u16Length, void *pvMessag
 
     /* Make sure there is only one thread sending messages to the node at a time. */
     //互斥锁，uart metux??
-
     eStatus = eSL_WriteMessage(u16Type, u16Length, (uint8_t *)pvMessage);
-
     if (eStatus == E_SL_OK)	//如果消息发送成功
     {
         /* Command sent successfully */
@@ -150,22 +169,27 @@ teSL_Status eSL_SendMessage(uint16_t u16Type, uint16_t u16Length, void *pvMessag
         sStatus.u16MessageType = u16Type;
 
         /* Expect a status response within 100ms  在100ms内等待状态响应*/
-        eStatus = eSL_MessageWait(E_SL_MSG_STATUS, 300, &u16Length, (void**)&psStatus);
+        eStatus = eSL_MessageWait(E_SL_MSG_STATUS, 500, &u16Length, (void**)&psStatus);
 
 
-        //if (eStatus == E_SL_OK)
-        //{
-        //   user_ZigbeeSerialLink_log("Status: %d, Sequence %d\n", psStatus->eStatus, psStatus->u8SequenceNo);
-        //    eStatus = psStatus->eStatus;
-        //    if (eStatus == E_SL_OK)
-        //    {
-        //       if (pu8SequenceNo)
-        //        {
-        //            *pu8SequenceNo = psStatus->u8SequenceNo;
-        //        }
-        //    }
-        //    free(psStatus);
-        //}
+        if (eStatus == E_SL_OK)
+        {
+           user_ZigbeeSerialLink_log("Status: %d, Sequence %d", psStatus->eStatus, psStatus->u8SequenceNo);
+            eStatus = psStatus->eStatus;
+            if (eStatus == E_SL_OK)
+            {
+               if (pu8SequenceNo)
+                {
+                  *pu8SequenceNo = psStatus->u8SequenceNo;
+                }
+            }
+			if(psStatus != NULL)
+				free(psStatus);
+        }
+    }
+    else
+    {
+        user_ZigbeeSerialLink_log("Send Err");
     }
 
     return eStatus;
@@ -190,9 +214,10 @@ static teSL_Status eSL_WriteMessage(uint16_t u16Type, uint16_t u16Length, uint8_
     uint8_t u8CRC;
     uint8_t u8EscChar = SL_ESC_CHAR;
     uint8_t datalen = 0;
-    uint8_t *u8DataToSend = malloc(2*u16Length*sizeof(uint8_t));
-    u8CRC = u8SL_CalculateCRC(u16Type, u16Length, pu8Data);
 
+    uint8_t u8DataToSend[128];
+
+    u8CRC = u8SL_CalculateCRC(u16Type, u16Length, pu8Data);
     //user_ZigbeeSerialLink_log("(%d, %d, %02x)", u16Type, u16Length, u8CRC);
 
     //    if (verbosity >= 10)
@@ -297,7 +322,7 @@ static teSL_Status eSL_WriteMessage(uint16_t u16Type, uint16_t u16Length, uint8_
     u8DataToSend[datalen++] = SL_END_CHAR;
 
     err = MicoUartSend(UART_FOR_APP, u8DataToSend, datalen);
-    free(u8DataToSend);
+
 
     if(err != kNoErr)
         return E_SL_ERROR;
@@ -342,87 +367,52 @@ static uint8_t u8SL_CalculateCRC(uint16_t u16Type, uint16_t u16Length, uint8_t *
 ****************************************************************************/
 teSL_Status eSL_MessageWait(uint16_t u16Type, uint32_t u32WaitTimeout, uint16_t *pu16Length, void **ppvMessage)
 {
-    int i;
-    tsSerialLink *psSerialLink = &sSerialLink;
-    unsigned int temptime=0;
-    while(temptime<u32WaitTimeout)
+    uint32_t temptime=0;
+    uint8_t recvlen = 0;
+    //===================received ACK================================
+    uint8_t *inDataBuffer = malloc(USER_UART_ONE_PACKAGE_LENGTH);	//接收数据缓冲
+    require(inDataBuffer, exit);
+    while(temptime < u32WaitTimeout)
     {
-        temptime += 10;
-        mico_thread_msleep(10);
-        for (i = 0; i < SL_MAX_MESSAGE_QUEUES; i++)
+        temptime += 2;
+        mico_thread_msleep(2);
+
+        memset(inDataBuffer,0x0,USER_UART_ONE_PACKAGE_LENGTH);		//清空接收数据缓冲
+
+        recvlen = user_uartRecv(inDataBuffer, USER_UART_ONE_PACKAGE_LENGTH);//user uart 接收数据
+        if (recvlen <= 0)
+            continue;
+
+        recv_buff_parser_ACK((char*)inDataBuffer);	//解析接收到的数据，把完整的数据包存储在 ACKcmd 数组中
+
+        //user_ZigbeeSerialLink_log("cmd num:%d",cmdACKnum);
+        for(uint8_t i = 0; i<cmdACKnum; i++)	//逐条处理 ACKcmd
         {
-            //ser_ZigbeeSerialLink_log("Locking queue %d mutex", i);
-            mico_rtos_lock_mutex(&psSerialLink->asReaderMessageQueue[i].mutex);
-            //user_ZigbeeSerialLink_log("Acquired queue %d mutex", i);
+            /* Initialise buffer */
+            memset(&sMessage, 0, sizeof(tsSL_Message));	//初始化 message 缓冲
+            /* Initialise length to large value so CRC is skipped if end received */
+            sMessage.u16Length = 0xFFFF;
 
-            if (psSerialLink->asReaderMessageQueue[i].u16Type == u16Type)
+            if (eSL_ReadMessage(&sMessage.u16Type, &sMessage.u16Length, SL_MAX_MESSAGE_LENGTH, sMessage.au8Message,(unsigned char*)cmdACKbuff[i],strlen(cmdACKbuff[i])) == E_SL_OK)
             {
-                //struct timeval sNow;
-                //struct timespec sTimeout;
-
-                user_ZigbeeSerialLink_log("Found free slot %d to wait for message 0x%04X", i, u16Type);
-
-
-                *pu16Length = psSerialLink->asReaderMessageQueue[i].u16Length;
-                *ppvMessage = psSerialLink->asReaderMessageQueue[i].pu8Message;
-
-                /* Reset queue for next user */
-                psSerialLink->asReaderMessageQueue[i].u16Type = 0;
-                mico_rtos_unlock_mutex(&psSerialLink->asReaderMessageQueue[i].mutex);
-                user_ZigbeeSerialLink_log("temptime:%d",temptime);
-                return E_SL_OK;
-                //            memset(&sNow, 0, sizeof(struct timeval));
-                //            gettimeofday(&sNow, NULL);
-                //            sTimeout.tv_sec = sNow.tv_sec + (u32WaitTimeout/1000);
-                //            sTimeout.tv_nsec = (sNow.tv_usec + ((u32WaitTimeout % 1000) * 1000)) * 1000;
-                //            if (sTimeout.tv_nsec > 1000000000)
-                //            {
-                //                sTimeout.tv_sec++;
-                //                sTimeout.tv_nsec -= 1000000000;
-                //            }
-                //            mico_log("Time now    %lu s, %lu ns\n", sNow.tv_sec, sNow.tv_usec * 1000);
-                //            mico_log("Wait until  %lu s, %lu ns\n", sTimeout.tv_sec, sTimeout.tv_nsec);
-                //
-                //            switch (pthread_cond_timedwait(&psSerialLink->asReaderMessageQueue[i].cond_data_available, &psSerialLink->asReaderMessageQueue[i].mutex, &sTimeout))
-                //            {
-                //                case (0):
-                //                    mico_log("Got message type 0x%04x, length %d\n",
-                //                                psSerialLink->asReaderMessageQueue[i].u16Type,
-                //                                psSerialLink->asReaderMessageQueue[i].u16Length);
-                //                    *pu16Length = psSerialLink->asReaderMessageQueue[i].u16Length;
-                //                    *ppvMessage = psSerialLink->asReaderMessageQueue[i].pu8Message;
-                //
-                //                    /* Reset queue for next user */
-                //                    psSerialLink->asReaderMessageQueue[i].u16Type = 0;
-                //                    pthread_mutex_unlock(&psSerialLink->asReaderMessageQueue[i].mutex);
-                //                    return E_SL_OK;
-                //
-                //                case (ETIMEDOUT):
-                //                    mico_log("Timed out\n");
-                //                    /* Reset queue for next user */
-                //                    psSerialLink->asReaderMessageQueue[i].u16Type = 0;
-                //                    pthread_mutex_unlock(&psSerialLink->asReaderMessageQueue[i].mutex);
-                //                    return E_SL_NOMESSAGE;
-                //                    break;
-                //
-                //                default:
-                //                    /* Reset queue for next user */
-                //                    psSerialLink->asReaderMessageQueue[i].u16Type = 0;
-                //                    pthread_mutex_unlock(&psSerialLink->asReaderMessageQueue[i].mutex);
-                //                    return E_SL_ERROR;
-                //            }
-            }
-            else
-            {
-                mico_rtos_unlock_mutex(&psSerialLink->asReaderMessageQueue[i].mutex);
+                user_ZigbeeSerialLink_log("Get Ack,temptime:%d",temptime);
+                if(sMessage.u16Type == u16Type)
+                {
+                    *pu16Length = sMessage.u16Length;
+                    *ppvMessage = sMessage.au8Message;
+                    if(inDataBuffer)
+                        free(inDataBuffer);
+                    return E_SL_OK;
+                }
             }
         }
+        memset(cmdACKbuff[0], 0x0, sizeof(cmdACKbuff[0])* cmdACKnum);
+        cmdACKnum = 0;
     }
-
-
-
     user_ZigbeeSerialLink_log("Error, no ack");
-
+exit:
+    if(inDataBuffer)
+        free(inDataBuffer);
     return E_SL_NOMESSAGE;
 }
 
@@ -448,109 +438,109 @@ teSL_Status eSL_ReadMessage(uint16_t *pu16Type, uint16_t *pu16Length, uint16_t u
         switch(u8Data)
         {
 
-        case SL_START_CHAR:
-            u16Bytes = 0;
-            bInEsc = FALSE;
-            //user_ZigbeeSerialLink_log("RX Start");
-            eRxState = E_STATE_RX_WAIT_TYPEMSB;
-            break;
-
-        case SL_ESC_CHAR:
-            //user_ZigbeeSerialLink_log("Got ESC");
-            bInEsc = TRUE;
-            break;
-
-        case SL_END_CHAR:
-            //user_ZigbeeSerialLink_log("Got END");
-
-            if(*pu16Length > u16MaxLength)
-            {
-                /* Sanity check length before attempting to CRC the message */
-                //user_ZigbeeSerialLink_log("Length > MaxLength");
-                eRxState = E_STATE_RX_WAIT_START;
-                break;
-            }
-
-            if(u8CRC == u8SL_CalculateCRC(*pu16Type, *pu16Length, pu8Message))
-            {
-#if DBG_SERIALLINK
-                int i;
-                user_ZigbeeSerialLink_log("RX Message type 0x%04x length %d: { ", *pu16Type, *pu16Length);
-                for (i = 0; i < *pu16Length; i++)
-                {
-                    user_ZigbeeSerialLink_log("0x%02x ", pu8Message[i]);
-                }
-                user_ZigbeeSerialLink_log("}");
-#endif /* DBG_SERIALLINK */
-
-                eRxState = E_STATE_RX_WAIT_START;
-                return E_SL_OK;
-            }
-            //user_ZigbeeSerialLink_log("CRC BAD");
-            break;
-
-        default:
-            if(bInEsc)
-            {
-                u8Data ^= 0x10;
+            case SL_START_CHAR:
+                u16Bytes = 0;
                 bInEsc = FALSE;
-            }
-
-            switch(eRxState)
-            {
-
-            case E_STATE_RX_WAIT_START:
+                //user_ZigbeeSerialLink_log("RX Start");
+                eRxState = E_STATE_RX_WAIT_TYPEMSB;
                 break;
 
-
-            case E_STATE_RX_WAIT_TYPEMSB:
-                *pu16Type = (uint16_t)u8Data << 8;
-                eRxState++;
+            case SL_ESC_CHAR:
+                //user_ZigbeeSerialLink_log("Got ESC");
+                bInEsc = TRUE;
                 break;
 
-            case E_STATE_RX_WAIT_TYPELSB:
-                *pu16Type += (uint16_t)u8Data;
-                eRxState++;
-                break;
+            case SL_END_CHAR:
+                //user_ZigbeeSerialLink_log("Got END");
 
-            case E_STATE_RX_WAIT_LENMSB:
-                *pu16Length = (uint16_t)u8Data << 8;
-                eRxState++;
-                break;
-
-            case E_STATE_RX_WAIT_LENLSB:
-                *pu16Length += (uint16_t)u8Data;
-                //user_ZigbeeSerialLink_log("Length %d\n", *pu16Length);
                 if(*pu16Length > u16MaxLength)
                 {
-                    //user_ZigbeeSerialLink_log("Length > MaxLength\n");
+                    /* Sanity check length before attempting to CRC the message */
+                    //user_ZigbeeSerialLink_log("Length > MaxLength");
                     eRxState = E_STATE_RX_WAIT_START;
+                    break;
                 }
-                else
-                {
-                    eRxState++;
-                }
-                break;
 
-            case E_STATE_RX_WAIT_CRC:
-                //user_ZigbeeSerialLink_log("CRC %02x\n", u8Data);
-                u8CRC = u8Data;
-                eRxState++;
-                break;
-
-            case E_STATE_RX_WAIT_DATA:
-                if(u16Bytes < *pu16Length)
+                if(u8CRC == u8SL_CalculateCRC(*pu16Type, *pu16Length, pu8Message))
                 {
-                    //user_ZigbeeSerialLink_log("Data\n");
-                    pu8Message[u16Bytes++] = u8Data;
+#if DBG_SERIALLINK
+                    int i;
+                    user_ZigbeeSerialLink_log("RX Message type 0x%04x length %d: { ", *pu16Type, *pu16Length);
+                    for (i = 0; i < *pu16Length; i++)
+                    {
+                        user_ZigbeeSerialLink_log("0x%02x ", pu8Message[i]);
+                    }
+                    user_ZigbeeSerialLink_log("}");
+#endif /* DBG_SERIALLINK */
+
+                    eRxState = E_STATE_RX_WAIT_START;
+                    return E_SL_OK;
                 }
+                //user_ZigbeeSerialLink_log("CRC BAD");
                 break;
 
             default:
-                //user_ZigbeeSerialLink_log("Unknown state\n");
-                eRxState = E_STATE_RX_WAIT_START;
-            }
-            break;
+                if(bInEsc)
+                {
+                    u8Data ^= 0x10;
+                    bInEsc = FALSE;
+                }
+
+                switch(eRxState)
+                {
+
+                    case E_STATE_RX_WAIT_START:
+                        break;
+
+
+                    case E_STATE_RX_WAIT_TYPEMSB:
+                        *pu16Type = (uint16_t)u8Data << 8;
+                        eRxState++;
+                        break;
+
+                    case E_STATE_RX_WAIT_TYPELSB:
+                        *pu16Type += (uint16_t)u8Data;
+                        eRxState++;
+                        break;
+
+                    case E_STATE_RX_WAIT_LENMSB:
+                        *pu16Length = (uint16_t)u8Data << 8;
+                        eRxState++;
+                        break;
+
+                    case E_STATE_RX_WAIT_LENLSB:
+                        *pu16Length += (uint16_t)u8Data;
+                        //user_ZigbeeSerialLink_log("Length %d\n", *pu16Length);
+                        if(*pu16Length > u16MaxLength)
+                        {
+                            //user_ZigbeeSerialLink_log("Length > MaxLength\n");
+                            eRxState = E_STATE_RX_WAIT_START;
+                        }
+                        else
+                        {
+                            eRxState++;
+                        }
+                        break;
+
+                    case E_STATE_RX_WAIT_CRC:
+                        //user_ZigbeeSerialLink_log("CRC %02x\n", u8Data);
+                        u8CRC = u8Data;
+                        eRxState++;
+                        break;
+
+                    case E_STATE_RX_WAIT_DATA:
+                        if(u16Bytes < *pu16Length)
+                        {
+                            //user_ZigbeeSerialLink_log("Data\n");
+                            pu8Message[u16Bytes++] = u8Data;
+                        }
+                        break;
+
+                    default:
+                        //user_ZigbeeSerialLink_log("Unknown state\n");
+                        eRxState = E_STATE_RX_WAIT_START;
+                }
+                break;
         }
     }
 
@@ -621,6 +611,147 @@ static teSL_Status eSL_MessageQueue(tsSerialLink *psSerialLink, uint16_t u16Type
     //    user_ZigbeeSerialLink_log("No listeners for message type 0x%04X\n", u16Type);
     return E_SL_NOMESSAGE;
 }
+
+
+teSL_Status eSL_Destroy(void)
+{
+    //eUtils_ThreadStop(&sSerialLink.sSerialReader);
+
+    //while (sSerialLink.sCallbacks.psListHead)
+    //{
+    //    eSL_RemoveListener(sSerialLink.sCallbacks.psListHead->u16Type, sSerialLink.sCallbacks.psListHead->prCallback);
+    //}
+
+    return E_SL_OK;
+}
+
+
+int recv_buff_parser_ACK(char*buff)
+{
+    char* sptr=NULL;
+    char* eptr=NULL;
+    static char startbuf[128];
+    static int startbuflength=0;
+    char* restBuff;
+    //int i=0;
+    //int ret=-1;
+    static AckBufStat bufstat=EMPTY;   //0: no start&end flag 1: start flag 2: end flag
+
+    if(buff == NULL)
+        return INVALID_DATA;
+
+    restBuff = buff;
+
+    while(1)
+    {
+        //user_ZigbeeSerialLink_log("bufstat is :%d rest buff:",bufstat);
+        //for(i=0; restBuff[i]!=0x0; i++)
+        //{
+        //    printf("%x ",restBuff[i]);
+        //}
+        //user_ZigbeeSerialLink_log("\r\n");
+
+        sptr = strchr(restBuff,0x01);
+        eptr = strchr(restBuff,0x03);
+
+        if(bufstat == EMPTY)
+        {
+            if(sptr)//find first START_CODE
+            {
+                bufstat = START_FLAG;
+                if(*(sptr+1))
+                {
+                    restBuff=sptr+1;//the START_CODE is not the end data
+                }
+                else
+                {
+                    break;
+                }
+            }
+            else
+            {
+                break;
+            }
+        }
+        else if(bufstat == START_FLAG)
+        {
+            if(eptr)
+            {
+                if((sptr==NULL)||((sptr - eptr)>0))//STARD_CODE not exist or START_CODE is after END_CODE, data is valid
+                {
+                    //printf("valid data between START_CODE and END_CODE!\r\n");
+                    memcpy(startbuf+startbuflength,restBuff,eptr-restBuff+1);	//add end_code
+                    memset(cmdACKbuff[cmdACKnum],0x0,sizeof(cmdACKbuff[cmdACKnum]));
+                    cmdACKbuff[cmdACKnum][0] = 0x01;
+                    memcpy(&(cmdACKbuff[cmdACKnum][1]),startbuf,startbuflength+eptr-restBuff+1);//copy START_CODE XXXXXX END_CODE TO recvbuff
+                    //user_ZigbeeSerialLink_log("length:%d,cmdACKbuff[%d]=%s",startbuflength+eptr-restBuff+2,cmdACKnum,cmdACKbuff[cmdACKnum]);
+
+                    //for(i=0; cmdACKbuff[cmdACKnum][i]!=0x0; i++)
+                    //{
+                    //    printf("%x ",cmdACKbuff[cmdACKnum][i]);
+                    //}
+                    //user_ZigbeeSerialLink_log("\r\n");
+
+                    cmdACKnum++;
+                    cmdACKnum %= CMD_ACK_BUF_NUM;
+
+                    bufstat=EMPTY;
+                    startbuflength = 0;
+                    memset(startbuf,0x0,sizeof(startbuf));
+
+                    if(*(eptr+1))
+                    {
+                        restBuff=eptr+1;//to find next START_CODE or END_CODE
+                        continue;
+                    }
+                    else
+                    {
+                        break;//get the buff end,quit
+                    }
+                }
+                else  //START_CODE XXX START_CODE XXXX END_CODE drop first START_CODE and data between the two START_CODE
+                {
+                    startbuflength = 0;
+                    memset(startbuf,0x0,sizeof(startbuf));
+
+                    if(*(sptr+1))
+                    {
+                        restBuff=sptr+1;//to find next START_CODE or END_CODE
+                        continue;
+                    }
+                    else
+                    {
+                        break;//get the buff end,quit
+                    }
+                }
+            }
+            else
+            {
+                if(sptr)  // START_CODE XXXX START_CODE XXXX
+                {
+                    if(*(sptr+1))
+                    {
+                        restBuff=sptr+1;//drop first START_CODE
+                        continue;
+                    }
+                    else
+                    {
+                        break;//get the buff end,quit
+                    }
+                }
+                else  //START CODE XXXXXXXXXXXXXX   copy the data to buff
+                {
+                    memcpy(startbuf+startbuflength,restBuff,strlen(restBuff));//need to check strlen(sptr)
+                    startbuflength+=strlen(restBuff);
+                    break;//the buff end
+                }
+            }
+        }
+    }
+    return NORMAL_CODE;
+}
+
+
 /*******************************************************************************
 * INTERFACES
 ******************************************************************************/

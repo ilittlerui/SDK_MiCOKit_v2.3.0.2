@@ -2150,25 +2150,25 @@
         <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\user_uart.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigbeeConstant.h</name>
+        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeConstant.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigbeeControlBridge.c</name>
+        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeControlBridge.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigbeeControlBridge.h</name>
+        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeControlBridge.h</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeNetwork.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigbeeNetwork.h</name>
+        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeNetwork.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigbeePDM.c</name>
+        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeePDM.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigbeePDM.h</name>
+        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeePDM.h</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeSerialLink.c</name>

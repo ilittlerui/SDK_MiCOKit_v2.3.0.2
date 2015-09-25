@@ -26,12 +26,25 @@
 #include "user_uart.h"
 #include "ZigBeeSerialLink.h"
 #include "ZigbeeControlBridge.h"
+#include "ZigBeeNetwork.h"
 
 #define user_uart_log(M, ...) custom_log("USER_UART", M, ##__VA_ARGS__)
 #define user_uart_log_trace() custom_log_trace("USER_UART")
 
 volatile ring_buffer_t  rx_buffer;
 volatile uint8_t        rx_data[USER_UART_BUFFER_LENGTH];
+
+
+extern uint8_t cloudMsgIncome;
+extern uint8_t cloudMsg[128];
+extern uint8_t cloudMsgLen;
+extern uint8_t cmdHaveDone;
+
+extern uint8_t uartMsg[128];
+extern uint8_t uartMsgLen;
+
+
+extern tsZCB_Network sZCB_Network;
 
 
 typedef enum
@@ -145,8 +158,8 @@ int recv_buff_parser(char*buff)
     static char startbuf[128];
     static int startbuflength=0;
     char* restBuff;
-    int i=0;
-//	int ret=-1;
+    //int i=0;
+    //int ret=-1;
     static BufStat bufstat=EMPTY;   //0: no start&end flag 1: start flag 2: end flag
 
     if(buff == NULL)
@@ -278,7 +291,7 @@ void uartRecv_thread(void *inContext)
     int recvlen;
     tsSL_Message  sMessage;
     //OSStatus err = kUnknownErr;
-
+    OSStatus eStatus = 0;
     uint8_t *inDataBuffer = malloc(USER_UART_ONE_PACKAGE_LENGTH);	//接收数据缓冲
     require(inDataBuffer, exit);
 
@@ -287,6 +300,99 @@ void uartRecv_thread(void *inContext)
     while(1)
     {
         mico_thread_msleep(10);	//延时50ms
+
+
+//=============================处理cloudMsg==================================================================================
+        eStatus = E_ZCB_ERROR;
+        if(cloudMsgIncome)
+        {
+            if(strncmp((char*)"init",(char*)cloudMsg,cloudMsgLen)==0)
+            {
+                user_uart_log("init cmd");
+
+                eStatus = eZCB_FactoryNew();
+                if (eStatus != E_ZCB_OK)
+                {
+                    user_uart_log("zigbee com send err!");
+                }
+                else
+                {
+                    user_uart_log("com send ok!");
+                    //send next cmd
+                }
+            }
+            else if(strncmp((char*)"device",(char*)cloudMsg,cloudMsgLen)==0)
+            {
+                user_uart_log("get device");
+            }
+            else if(strncmp((char*)"permit",(char*)cloudMsg,cloudMsgLen)==0)
+            {
+                user_uart_log("permit device join");
+                eZCB_SetPermitJoining(60);
+            }
+            else if(strncmp((char*)"nodes",(char*)cloudMsg,cloudMsgLen)==0)
+            {
+                eStatus = E_ZCB_OK;
+                user_uart_log("nodes");
+
+                DBG_PrintNode(&sZCB_Network.sNodes);
+
+                //while()
+                //{
+                //    DBG_PrintNode(&sZCB_Network.sNodes);
+                //}
+            }
+            else if(strncmp((char*)"network",(char*)cloudMsg,cloudMsgLen)==0)
+            {
+
+                user_uart_log("network");
+                //DisplayZCBNetwork();
+            }
+            else
+            {
+                user_uart_log("err cmd");
+            }
+
+            if(eStatus == E_ZCB_OK)
+            {
+                cmdHaveDone = 1;
+                memset(cloudMsg,0x0,128);
+                cloudMsgLen = 0;
+                cloudMsgIncome = 0;
+                //把命令的处理结果放在 uartMsg 中
+                uartMsgLen = 2;
+                uartMsg[0]='o';
+                uartMsg[1]='k';
+                uartMsg[2]='\0';
+            }
+            else
+            {
+                user_uart_log("cloudMsg handle err");
+                cmdHaveDone = 1;
+                memset(cloudMsg,0x0,128);
+                cloudMsgLen = 0;
+                cloudMsgIncome = 0;
+                //把命令的处理结果放在 uartMsg 中
+                uartMsgLen = 2;
+                uartMsg[0]='e';
+                uartMsg[1]='r';
+                uartMsg[2]='\0';
+            }
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+//===========================处理uart接收=========================================================================
         memset(inDataBuffer,0x0,USER_UART_ONE_PACKAGE_LENGTH);		//清空接收数据缓冲
         // ======================get msg from uart=======================
         recvlen = user_uartRecv(inDataBuffer, USER_UART_ONE_PACKAGE_LENGTH);//user uart 接收数据

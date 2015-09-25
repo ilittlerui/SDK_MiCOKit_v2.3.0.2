@@ -1,6 +1,6 @@
 /**
 ******************************************************************************
-* @file    spi_flash.c 
+* @file    spi_flash.c
 * @author  William Xu
 * @version V1.0.0
 * @date    16-Sep-2014
@@ -10,9 +10,9 @@
 *  The MIT License
 *  Copyright (c) 2014 MXCHIP Inc.
 *
-*  Permission is hereby granted, free of charge, to any person obtaining a copy 
+*  Permission is hereby granted, free of charge, to any person obtaining a copy
 *  of this software and associated documentation files (the "Software"), to deal
-*  in the Software without restriction, including without limitation the rights 
+*  in the Software without restriction, including without limitation the rights
 *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 *  copies of the Software, and to permit persons to whom the Software is furnished
 *  to do so, subject to the following conditions:
@@ -20,11 +20,11 @@
 *  The above copyright notice and this permission notice shall be included in
 *  all copies or substantial portions of the Software.
 *
-*  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
-*  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-*  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+*  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+*  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+*  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-*  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR 
+*  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 *  IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************
 */
@@ -98,7 +98,8 @@ int sflash_sector_erase ( const sflash_handle_t* const handle, unsigned long dev
 
     char device_address_array[3] =  { ( ( device_address & 0x00FF0000 ) >> 16 ),
                                       ( ( device_address & 0x0000FF00 ) >>  8 ),
-                                      ( ( device_address & 0x000000FF ) >>  0 ) };
+                                      ( ( device_address & 0x000000FF ) >>  0 )
+                                    };
 
     int retval;
     int status = sflash_write_enable( handle );
@@ -122,7 +123,8 @@ int sflash_read( const sflash_handle_t* const handle, unsigned long device_addre
 {
     char device_address_array[3] =  { ( ( device_address & 0x00FF0000 ) >> 16 ),
                                       ( ( device_address & 0x0000FF00 ) >>  8 ),
-                                      ( ( device_address & 0x000000FF ) >>  0 ) };
+                                      ( ( device_address & 0x000000FF ) >>  0 )
+                                    };
 
     return generic_sflash_command( handle, SFLASH_READ, 3, device_address_array, size, NULL, data_addr );
 }
@@ -243,7 +245,7 @@ int sflash_write_page( const sflash_handle_t* const handle, unsigned long device
 
 
     if ( ( enable_before_every_write == 0 ) &&
-         ( 0 != ( status = sflash_write_enable( handle ) ) ) )
+            ( 0 != ( status = sflash_write_enable( handle ) ) ) )
     {
         return status;
     }
@@ -258,7 +260,7 @@ int sflash_write_page( const sflash_handle_t* const handle, unsigned long device
         curr_device_address[2] = ( ( device_address & 0x000000FF ) >>  0 );
 
         if ( ( enable_before_every_write == 1 ) &&
-             ( 0 != ( status = sflash_write_enable( handle ) ) ) )
+                ( 0 != ( status = sflash_write_enable( handle ) ) ) )
         {
             return status;
         }
@@ -288,82 +290,82 @@ int sflash_write_page( const sflash_handle_t* const handle, unsigned long device
   */
 int sflash_write( const sflash_handle_t* const handle, unsigned long device_address, const void* const data_addr, unsigned int size )
 {
-  int status;
-  uint8_t NumOfPage = 0, NumOfSingle = 0, Addr = 0, count = 0, temp = 0;
-  unsigned char* data_addr_ptr = (unsigned char*) data_addr;
+    int status;
+    uint8_t NumOfPage = 0, NumOfSingle = 0, Addr = 0, count = 0, temp = 0;
+    unsigned char* data_addr_ptr = (unsigned char*) data_addr;
 
-  Addr = device_address % sFLASH_SPI_PAGESIZE;
-  count = sFLASH_SPI_PAGESIZE - Addr;
-  NumOfPage =  size / sFLASH_SPI_PAGESIZE;
-  NumOfSingle = size % sFLASH_SPI_PAGESIZE;
+    Addr = device_address % sFLASH_SPI_PAGESIZE;
+    count = sFLASH_SPI_PAGESIZE - Addr;
+    NumOfPage =  size / sFLASH_SPI_PAGESIZE;
+    NumOfSingle = size % sFLASH_SPI_PAGESIZE;
 
-  if (Addr == 0) /*!< WriteAddr is sFLASH_PAGESIZE aligned  */
-  {
-    if (NumOfPage == 0) /*!< NumByteToWrite < sFLASH_PAGESIZE */
+    if (Addr == 0) /*!< WriteAddr is sFLASH_PAGESIZE aligned  */
     {
-      status = sflash_write_page( handle, device_address, data_addr_ptr, size );
-      //sFLASH_WritePage(pBuffer, WriteAddr, NumByteToWrite);
+        if (NumOfPage == 0) /*!< NumByteToWrite < sFLASH_PAGESIZE */
+        {
+            status = sflash_write_page( handle, device_address, data_addr_ptr, size );
+            //sFLASH_WritePage(pBuffer, WriteAddr, NumByteToWrite);
+        }
+        else /*!< NumByteToWrite > sFLASH_PAGESIZE */
+        {
+            while (NumOfPage--)
+            {
+                status = sflash_write_page( handle, device_address, data_addr_ptr, sFLASH_SPI_PAGESIZE );
+                //sFLASH_WritePage(pBuffer, WriteAddr, sFLASH_SPI_PAGESIZE);
+                device_address +=  sFLASH_SPI_PAGESIZE;
+                data_addr_ptr += sFLASH_SPI_PAGESIZE;
+            }
+
+            status = sflash_write_page( handle, device_address, data_addr_ptr, NumOfSingle);
+        }
     }
-    else /*!< NumByteToWrite > sFLASH_PAGESIZE */
+    else /*!< WriteAddr is not sFLASH_PAGESIZE aligned  */
     {
-      while (NumOfPage--)
-      {
-        status = sflash_write_page( handle, device_address, data_addr_ptr, sFLASH_SPI_PAGESIZE );
-        //sFLASH_WritePage(pBuffer, WriteAddr, sFLASH_SPI_PAGESIZE);
-        device_address +=  sFLASH_SPI_PAGESIZE;
-        data_addr_ptr += sFLASH_SPI_PAGESIZE;
-      }
+        if (NumOfPage == 0) /*!< NumByteToWrite < sFLASH_PAGESIZE */
+        {
+            if (NumOfSingle > count) /*!< (NumByteToWrite + WriteAddr) > sFLASH_PAGESIZE */
+            {
+                temp = NumOfSingle - count;
 
-      status = sflash_write_page( handle, device_address, data_addr_ptr, NumOfSingle);
+                status = sflash_write_page( handle, device_address, data_addr_ptr, count );
+                //sFLASH_WritePage(pBuffer, WriteAddr, count);
+                device_address +=  count;
+                data_addr_ptr += count;
+
+                status = sflash_write_page( handle, device_address, data_addr_ptr, temp);
+            }
+            else
+            {
+                status = sflash_write_page(handle, device_address, data_addr_ptr, size);
+            }
+        }
+        else /*!< NumByteToWrite > sFLASH_PAGESIZE */
+        {
+            size -= count;
+            NumOfPage =  size / sFLASH_SPI_PAGESIZE;
+            NumOfSingle = size % sFLASH_SPI_PAGESIZE;
+
+            status = sflash_write_page( handle, device_address, data_addr_ptr, count );
+            //sFLASH_WritePage(pBuffer, WriteAddr, count);
+            device_address +=  count;
+            data_addr_ptr += count;
+
+            while (NumOfPage--)
+            {
+                status = sflash_write_page( handle, device_address, data_addr_ptr, sFLASH_SPI_PAGESIZE );
+                //sFLASH_WritePage(pBuffer, WriteAddr, sFLASH_SPI_PAGESIZE);
+                device_address +=  sFLASH_SPI_PAGESIZE;
+                data_addr_ptr += sFLASH_SPI_PAGESIZE;
+            }
+
+            if (NumOfSingle != 0)
+            {
+                status = sflash_write_page( handle, device_address, data_addr_ptr, NumOfSingle );
+                //sFLASH_WritePage(pBuffer, WriteAddr, NumOfSingle);
+            }
+        }
     }
-  }
-  else /*!< WriteAddr is not sFLASH_PAGESIZE aligned  */
-  {
-    if (NumOfPage == 0) /*!< NumByteToWrite < sFLASH_PAGESIZE */
-    {
-      if (NumOfSingle > count) /*!< (NumByteToWrite + WriteAddr) > sFLASH_PAGESIZE */
-      {
-        temp = NumOfSingle - count;
-
-        status = sflash_write_page( handle, device_address, data_addr_ptr, count );
-        //sFLASH_WritePage(pBuffer, WriteAddr, count);
-        device_address +=  count;
-        data_addr_ptr += count;
-
-        status = sflash_write_page( handle, device_address, data_addr_ptr, temp);
-      }
-      else
-      {
-        status = sflash_write_page(handle, device_address, data_addr_ptr, size);
-      }
-    }
-    else /*!< NumByteToWrite > sFLASH_PAGESIZE */
-    {
-      size -= count;
-      NumOfPage =  size / sFLASH_SPI_PAGESIZE;
-      NumOfSingle = size % sFLASH_SPI_PAGESIZE;
-
-      status = sflash_write_page( handle, device_address, data_addr_ptr, count );
-      //sFLASH_WritePage(pBuffer, WriteAddr, count);
-      device_address +=  count;
-      data_addr_ptr += count;
-
-      while (NumOfPage--)
-      {
-        status = sflash_write_page( handle, device_address, data_addr_ptr, sFLASH_SPI_PAGESIZE );
-        //sFLASH_WritePage(pBuffer, WriteAddr, sFLASH_SPI_PAGESIZE);
-        device_address +=  sFLASH_SPI_PAGESIZE;
-        data_addr_ptr += sFLASH_SPI_PAGESIZE;
-      }
-
-      if (NumOfSingle != 0)
-      {
-        status = sflash_write_page( handle, device_address, data_addr_ptr, NumOfSingle );
-        //sFLASH_WritePage(pBuffer, WriteAddr, NumOfSingle);
-      }
-    }
-  }
-  return status;
+    return status;
 }
 
 int sflash_write_status_register( const sflash_handle_t* const handle, char value )
@@ -386,7 +388,7 @@ int sflash_write_status_register( const sflash_handle_t* const handle, char valu
 
 int init_sflash( /*@out@*/ sflash_handle_t* const handle, /*@shared@*/ void* peripheral_id, sflash_write_allowed_t write_allowed_in )
 {
-   int status;
+    int status;
     device_id_t tmp_device_id;
 
     status = sflash_platform_init( peripheral_id, &handle->platform_peripheral );
@@ -433,22 +435,22 @@ static inline int is_write_command( sflash_command_t cmd )
 
 
 int generic_sflash_command(                                      const sflash_handle_t* const handle,
-                                                                 sflash_command_t             cmd,
-                                                                 unsigned long                num_initial_parameter_bytes,
-                            /*@null@*/ /*@observer@*/            const void* const            parameter_bytes,
-                                                                 unsigned long                num_data_bytes,
-                            /*@null@*/ /*@observer@*/            const void* const            data_MOSI,
-                            /*@null@*/ /*@out@*/ /*@dependent@*/ void* const                  data_MISO )
+        sflash_command_t             cmd,
+        unsigned long                num_initial_parameter_bytes,
+        /*@null@*/ /*@observer@*/            const void* const            parameter_bytes,
+        unsigned long                num_data_bytes,
+        /*@null@*/ /*@observer@*/            const void* const            data_MOSI,
+        /*@null@*/ /*@out@*/ /*@dependent@*/ void* const                  data_MISO )
 {
     int status;
-    
+
     sflash_platform_message_segment_t segments[3] =
     {
-            { &cmd,            NULL,       (unsigned long) 1 },
-            { parameter_bytes, NULL,       num_initial_parameter_bytes },
-            /*@-compdef@*/ /* Lint: Tell lint that it is OK that data_MISO is not completely defined */
-            { data_MOSI,       data_MISO,  num_data_bytes }
-            /*@+compdef@*/
+        { &cmd,            NULL,       (unsigned long) 1 },
+        { parameter_bytes, NULL,       num_initial_parameter_bytes },
+        /*@-compdef@*/ /* Lint: Tell lint that it is OK that data_MISO is not completely defined */
+        { data_MOSI,       data_MISO,  num_data_bytes }
+        /*@+compdef@*/
     };
 
 
@@ -475,7 +477,8 @@ int generic_sflash_command(                                      const sflash_ha
                 return status;
                 /*@+mustdefine@*/
             }
-        } while( ( status_register & SFLASH_STATUS_REGISTER_BUSY ) != (unsigned char) 0 );
+        }
+        while( ( status_register & SFLASH_STATUS_REGISTER_BUSY ) != (unsigned char) 0 );
 
     }
 

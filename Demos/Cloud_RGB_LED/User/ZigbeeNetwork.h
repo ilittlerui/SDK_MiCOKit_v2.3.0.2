@@ -26,7 +26,7 @@ extern "C" {
 
 #include <stdint.h>
 #include "mico_rtos.h"
-#include "ZigbeeControlBridge.h"
+#include "ZigBeeControlBridge.h"
 
 /****************************************************************************/
 /***        Macro Definitions                                             ***/
@@ -82,6 +82,9 @@ void        vZCB_NodeUpdateComms(tsZCB_Node *psZCBNode, teZcbStatus eStatus);
 *  \return A pointer to the endpoint or NULL if cluster ID not found
 */
 tsZCB_NodeEndpoint *psZCB_NodeFindEndpoint(tsZCB_Node *psZCBNode, uint16_t u16ClusterID);
+
+
+void DisplayZCBNetwork();
 
 /****************************************************************************/
 /***        Local Functions                                               ***/

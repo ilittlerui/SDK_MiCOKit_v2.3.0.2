@@ -27,6 +27,7 @@
 #include "lcd/oled.h"
 #include "user_uart.h"
 #include "ZigbeeControlBridge.h"
+#include "ZigBeeNetwork.h"
 
 /* User defined debug log functions
  * Add your own tag like: 'USER', the tag will be added at the beginning of a log
@@ -35,7 +36,19 @@
 #define user_log(M, ...) custom_log("USER", M, ##__VA_ARGS__)
 #define user_log_trace() custom_log_trace("USER")
 
-#pragma pack(show)
+//#pragma pack(show)
+
+char cloudMsg[128]= {0};
+uint8_t cloudMsgLen = 0;
+uint8_t cloudMsgIncome = 0;
+
+char uartMsg[128]= {0};
+uint8_t uartMsgLen = 0;
+
+uint8_t cmdHaveDone = 0;
+uint8_t currentCmd = 0;
+
+
 
 /* user main function, called by AppFramework after system init done && wifi
  * station on in user_main thread.
@@ -61,15 +74,15 @@ OSStatus user_main( app_context_t * const app_context )
 
     hsb2rgb_led_init(); 	// rgb led init		初始化 RGB
     err = user_uartInit();		// uart init		初始化 user_UART
-    user_log("User uart Init");
     require_noerr_action( err, exit, user_log("ERROR: user_uartInit err = %d.", err) );
-
-    eZCB_Init();			//ZigBee ControlBridge Init		初始化zigbee协调器
+    user_log("User uart Init");
+    
+    eZCB_Init(app_context);			//ZigBee ControlBridge Init		初始化zigbee协调器
     user_log("ZCB Init");
+    struct json_object* send_json_object = NULL;
+    const char *upload_data = NULL;
 
-    uint8_t cloudMsg[128];
- 
-    teZcbStatus eStatus;
+    //teZcbStatus eStatus;
     while(1)
     {
         mico_thread_msleep(200);	//延时200ms
@@ -115,13 +128,25 @@ OSStatus user_main( app_context_t * const app_context )
                     else if(!strcmp(key, "11"))
                     {
                         user_log("Receive zigbee cmd");
-                        memset(cloudMsg,0x0,sizeof(cloudMsg));
-                        strncpy((char*)cloudMsg, (char*)json_object_get_string(val), json_object_get_string_len(val));
 
+                        if(strlen(cloudMsg)==0)
+                        {
+                            cmdHaveDone = 0;
+                            memset(cloudMsg,0x0,sizeof(cloudMsg));
+                            cloudMsgLen=json_object_get_string_len(val);
+                            cloudMsgIncome = 1;
+                            strncpy((char*)cloudMsg, (char*)json_object_get_string(val), cloudMsgLen);
+                        }
+                        else
+                        {
+                            user_log("pre cmd is handling");
+                        }
+
+#if 0
                         if(strncmp((char*)"init",(char*)cloudMsg,json_object_get_string_len(val))==0)
                         {
                             user_log("init cmd");
-                            //eZCB_ConfigureControlBridge();
+
                             eStatus = eZCB_FactoryNew();
                             if (eStatus != E_ZCB_OK)
                             {
@@ -137,19 +162,32 @@ OSStatus user_main( app_context_t * const app_context )
                                 //send next cmd
                             }
                         }
-                        else if(strcmp((char*)"device",(char*)(recv_msg->data + recv_msg->topic_len))==0)
+                        else if(strncmp((char*)"device",(char*)cloudMsg,json_object_get_string_len(val))==0)
                         {
                             user_log("get device");
                         }
-                        else if(strcmp((char*)"permit",(char*)(recv_msg->data + recv_msg->topic_len))==0)
+                        else if(strncmp((char*)"permit",(char*)cloudMsg,json_object_get_string_len(val))==0)
                         {
                             user_log("permit device join");
                             eZCB_SetPermitJoining(60);
+                        }
+                        else if(strncmp((char*)"nodes",(char*)cloudMsg,json_object_get_string_len(val))==0)
+                        {
+                            user_log("nodes");
+                            DBG_PrintNode(&sZCB_Network.sNodes);
+                        }
+                        else if(strncmp((char*)"network",(char*)cloudMsg,json_object_get_string_len(val))==0)
+                        {
+                            user_log("network");
+                            //DisplayZCBNetwork();
                         }
                         else
                         {
                             user_log("err cmd");
                         }
+
+#endif
+
 
                     }
                 }
@@ -185,6 +223,60 @@ OSStatus user_main( app_context_t * const app_context )
             OLED_ShowString(OLED_DISPLAY_COLUMN_START, OLED_DISPLAY_ROW_3, "LED control     ");  // show led cmd
             OLED_ShowString(OLED_DISPLAY_COLUMN_START, OLED_DISPLAY_ROW_4, "                ");  // clean line4
         }
+
+        //判断uart thread是否处理完 cmd
+        //如果处理完成,把相应发送到 cloud
+        if(strlen(uartMsg)!=0 && cmdHaveDone)
+        {
+			
+            {
+                err = kNoErr;
+                // create json object to format upload data
+                send_json_object = json_object_new_object();
+                if(NULL == send_json_object)
+                {
+                    user_log("create json object error!");
+                    err = kNoMemoryErr;
+                }
+                else
+                {
+                    // add temperature/humidity data into a json oject
+                    json_object_object_add(send_json_object, "11", json_object_new_int(13));
+                    upload_data = json_object_to_json_string(send_json_object);
+                    if(NULL == upload_data)
+                    {
+                        user_log("create upload data string error!");
+                        err = kNoMemoryErr;
+                    }
+                    else
+                    {
+                        // check fogcloud connect status
+                        if(app_context->appStatus.fogcloudStatus.isCloudConnected)
+                        {
+                            // upload data string to fogcloud, the seconde param(NULL) means send to defalut topic: '<device_id>/out'
+                            MiCOFogCloudMsgSend(app_context, NULL, (unsigned char*)upload_data, strlen(upload_data));
+                            user_log("upload data success! \t topic=%s/out",
+                                     app_context->appConfig->fogcloudConfig.deviceId);
+                            err = kNoErr;
+                        }
+                    }
+
+                    // free json object memory
+                    json_object_put(send_json_object);
+                    send_json_object = NULL;
+                }
+            }
+			memset(uartMsg,0x00,sizeof(uartMsg));
+			
+        }
+        else
+        {
+
+        }
+
+
+
+
     }
 
 exit:

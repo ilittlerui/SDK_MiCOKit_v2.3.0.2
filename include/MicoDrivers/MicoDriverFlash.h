@@ -102,6 +102,13 @@ extern const char*  flash_name[];  /**< A name string of a Flash drive */
 * @brief  Flash operation Functions
 * @{
 */
+OSStatus MicoFlashInitialize( mico_partition_t partition );
+
+
+/** @defgroup MICO_FLASH MICO Flash Driver
+* @brief  Flash operation Functions
+* @{
+*/
 
 mico_logic_partition_t* MicoFlashGetInfo( mico_partition_t inPartition );
 

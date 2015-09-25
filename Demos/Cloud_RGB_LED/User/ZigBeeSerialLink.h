@@ -30,7 +30,7 @@ extern "C" {
 /****************************************************************************/
 #define UART_FOR_MCU                        MICO_UART_2
 
-#define PACKED __attribute__((__packed__))
+//#define PACKED __attribute__((__packed__))
 
 
 

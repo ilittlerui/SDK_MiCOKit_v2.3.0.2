@@ -37,7 +37,7 @@
 ***************************************************************************/
 
 #include <stdint.h>
-
+#include "mico_system.h"
 #ifndef __PDM_H__
 #define __PDM_H__
 
@@ -49,7 +49,7 @@ extern "C" {
 /***        Include files                                                 ***/
 /****************************************************************************/
 
-#include "ZigbeeControlBridge.h"
+#include "ZigBeeControlBridge.h"
 
 /****************************************************************************/
 /***        Macro Definitions                                             ***/
@@ -76,8 +76,8 @@ extern "C" {
 /****************************************************************************/
 
 /** Initialise PDM for control bridge */
-teZcbStatus ePDM_Init();
-teZcbStatus ePDM_Destory(void);
+teZcbStatus ePDM_Init(mico_Context_t* mico_context);
+teZcbStatus ePDM_Destory();
 
 /****************************************************************************/
 /***        Local Functions                                               ***/

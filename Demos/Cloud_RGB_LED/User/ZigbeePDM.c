@@ -39,13 +39,19 @@
 /****************************************************************************/
 /***        Include files                                                 ***/
 /****************************************************************************/
-
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include "ZigbeePDM.h"
+#include "platform.h"
+#include "platform_peripheral.h"
+#include "platform_config.h"
+#include "mico_rtos.h"
+#include "Debug.h"
+#include "Common.h"
+#include "ZigBeePDM.h"
 #include "ZigBeeSerialLink.h"
-
+#include "ZigBeeControlBridge.h"
+#include "MicoDriverFlash.h"
 
 #define user_zigbeePDM_log(M, ...) custom_log("Zigbee_PDM", M, ##__VA_ARGS__)
 #define user_zigbeePDM_log_trace() custom_log_trace("Zigbee_PDM")
@@ -65,10 +71,10 @@
 /***        Local Function Prototypes                                     ***/
 /****************************************************************************/
 
-static void PDM_HandleAvailableRequest      (void *pvUser, uint16_t u16Length, void *pvMessage);
-static void PDM_HandleLoadRequest           (void *pvUser, uint16_t u16Length, void *pvMessage);
-static void PDM_HandleSaveRequest           (void *pvUser, uint16_t u16Length, void *pvMessage);
-static void PDM_HandleDeleteAllRequest      (void *pvUser, uint16_t u16Length, void *pvMessage);
+static void PDM_HandleAvailableRequest          (void *pvUser, uint16_t u16Length, void *pvMessage);
+static void PDM_HandleLoadRequest               (void *pvUser, uint16_t u16Length, void *pvMessage);
+static void PDM_HandleSaveRequest               (void *pvUser, uint16_t u16Length, void *pvMessage);
+static void PDM_HandleDeleteAllRequest          (void *pvUser, uint16_t u16Length, void *pvMessage);
 
 /****************************************************************************/
 /***        Exported Variables                                            ***/
@@ -84,31 +90,101 @@ static mico_mutex_t sLock;
 /***        Exported Functions                                            ***/
 /****************************************************************************/
 
-teZcbStatus ePDM_Init()
-{
-    user_zigbeePDM_log("Create database lock\n");
-    mico_rtos_init_mutex(&sLock);
 
-    //if (strcmp(pcPDMFile, "disabled") == 0)
-    //{
-    // Disabled
-    //    return E_ZCB_OK;
-    //}
+teZcbStatus ePDM_Init(mico_Context_t* mico_context)
+{
+    OSStatus err;
+    user_zigbeePDM_log("Create PDM lock");
+    mico_rtos_init_mutex(&sLock);
+    mico_logic_partition_t *zigbeePDM_partition_info;
+    //mico_logic_partition_t *p1_info;
+    uint8_t read_test[100]= {0};
+    uint8_t i = 0;
+    uint32_t dest_offset = 0;
+    uint8_t data_write[6]= {0x06,0x05,0x04,0x03,0x02,0x01};
 
     mico_rtos_lock_mutex(&sLock);
+
+#if 0
+    //init  MICO_PARTITION_ZIGBEEPDM_TEMP
+    err = MicoFlashInitialize(MICO_PARTITION_ZIGBEEPDM_TEMP);
+    require_noerr(err, exit);
+
+    // Get Info  MICO_PARTITION_ZIGBEEPDM_TEMP
+    zigbeePDM_partition_info = MicoFlashGetInfo(MICO_PARTITION_ZIGBEEPDM_TEMP);
+    user_zigbeePDM_log("ZigBee PDM Partition info:start_addr:%x ,length:%x",zigbeePDM_partition_info->partition_start_addr,zigbeePDM_partition_info->partition_length);
+
+    //Erase MICO_PARTITION_ZIGBEEPDM_TEMP
+    err = MicoFlashErase( MICO_PARTITION_ZIGBEEPDM_TEMP, 0x0, zigbeePDM_partition_info->partition_length);
+    require_noerr(err, exit);
+
+
+    mico_thread_msleep(100);	//sleep
+
+
+    //MicoFlashWrite(mico_partition_t partition, volatile uint32_t * off_set, uint8_t * inBuffer, uint32_t inBufferLength);
+
+    //Write MICO_PARTITION_ZIGBEEPDM_TEMP
+    err = MicoFlashWrite(MICO_PARTITION_ZIGBEEPDM_TEMP, &dest_offset, (uint8_t *)data_write, sizeof(data_write));
+    require_noerr(err, exit);
+#endif
+
+#if 0
+    mico_context -> user_config_data = (void*)data_write;
+    mico_context -> user_config_data_size = 10;
+    err = mico_system_context_update(mico_context);
+    require_noerr(err, exit);
+    mico_thread_msleep(1000);
+#endif
+
+#if 0
+    //Read
+    dest_offset = 0;
+    err = MicoFlashRead(MICO_PARTITION_ZIGBEEPDM_TEMP, &dest_offset, read_test, 5);
+    require_noerr(err, exit);
+#endif
+
+#if 0
+    err = MicoFlashErase( MICO_PARTITION_PARAMETER_1, 0x0, 60);
+    require_noerr(err, exit);
+    mico_thread_msleep(10);
+
+    err = MicoFlashWrite( MICO_PARTITION_PARAMETER_1, &dest_offset, "aaaaa", 5);
+    require_noerr(err, exit);
+
+
+    p1_info = MicoFlashGetInfo(MICO_PARTITION_PARAMETER_1);
+    err = MicoFlashRead(MICO_PARTITION_PARAMETER_1, &dest_offset, read_test, 60);
+    require_noerr(err, exit);
+#endif
+
+#if 0
+    //Output
+    for(i = 0; i<5; i++)
+    {
+        printf("0x%x ",read_test[i]);
+    }
+    printf("\r\n");
+#endif
+    //MicoFlashWrite( MICO_PARTITION_OTA_TEMP, &context->offset, (uint8_t *)inData, inLen);
+
+    //MicoFlashRead(MICO_PARTITION_OTA_TEMP, &flashaddr, (uint8_t *)md5_recv, 16);
+
+    //err = MicoFlashDisableSecurity( MICO_PARTITION_OTA_TEMP, 0x0, ota_partition_info->partition_length );
+
+
 
     //if (sqlite3_open_v2(pcPDMFile, &pDb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, NULL) != SQLITE_OK)
     //{
     //    daemon_log(LOG_ERR, "Error initialising PDM database (%s)", sqlite3_errmsg(pDb));
     //    return E_ZCB_ERROR;
     //}
-    user_zigbeePDM_log("PDM Database opened\n");
-
+    //user_zigbeePDM_log("PDM Database opened\n");
     {
-        const char *pcTableDef = "CREATE TABLE IF NOT EXISTS pdm (id INTEGER, size INTEGER, numblocks INTEGER, block INTEGER, blocksize INTEGER, data BLOB, PRIMARY KEY (id,block))";
+        //const char *pcTableDef = "CREATE TABLE IF NOT EXISTS pdm (id INTEGER, size INTEGER, numblocks INTEGER, block INTEGER, blocksize INTEGER, data BLOB, PRIMARY KEY (id,block))";
         //char *pcErr;
 
-        user_zigbeePDM_log("Execute SQL: '%s'\n", pcTableDef);
+        //user_zigbeePDM_log("Execute SQL: '%s'\n", pcTableDef);
 
         //if (sqlite3_exec(pDb, pcTableDef, NULL, NULL, &pcErr) != SQLITE_OK)
         //{
@@ -118,20 +194,25 @@ teZcbStatus ePDM_Init()
         //return E_ZCB_ERROR;
         //}
     }
-    user_zigbeePDM_log("PDM Database initialised\n");
+    //user_zigbeePDM_log("PDM Database initialised\n");
 
     //eSL_AddListener(E_SL_MSG_PDM_AVAILABLE_REQUEST,         PDM_HandleAvailableRequest,     NULL);
     //eSL_AddListener(E_SL_MSG_PDM_LOAD_RECORD_REQUEST,       PDM_HandleLoadRequest,          NULL);
     //eSL_AddListener(E_SL_MSG_PDM_SAVE_RECORD_REQUEST,       PDM_HandleSaveRequest,          NULL);
     //eSL_AddListener(E_SL_MSG_PDM_DELETE_ALL_RECORDS_REQUEST,PDM_HandleDeleteAllRequest,     NULL);
 
+
     mico_rtos_unlock_mutex(&sLock);
     return E_ZCB_OK;
+exit:
+    mico_rtos_unlock_mutex(&sLock);
+    return err;
 }
 
 
-teZcbStatus ePDM_Destory(void)
+teZcbStatus ePDM_Destory()
 {
+#if 0
     mico_rtos_lock_mutex(&sLock);
     //    if (pDb)
     //    {
@@ -140,6 +221,7 @@ teZcbStatus ePDM_Destory(void)
     //    }
     mico_rtos_unlock_mutex(&sLock);
     mico_rtos_deinit_mutex(&sLock);
+#endif
     return E_ZCB_OK;
 }
 
@@ -147,7 +229,7 @@ teZcbStatus ePDM_Destory(void)
 /****************************************************************************/
 /***        Local Functions                                               ***/
 /****************************************************************************/
-
+#if 0
 static void PDM_HandleAvailableRequest(void *pvUser, uint16_t u16Length, void *pvMessage)
 {
     user_zigbeePDM_log("Host PDM availability request\n");
@@ -156,21 +238,22 @@ static void PDM_HandleAvailableRequest(void *pvUser, uint16_t u16Length, void *p
         user_zigbeePDM_log("Error sending message\n");
     }
 }
+#endif
 
-
+#if 0
 static void PDM_HandleLoadRequest(void *pvUser, uint16_t u16Length, void *pvMessage)
 {
     //    sqlite3_stmt *psStatement;
     //    char *pcSQL;
     //    int iError = 1;
     //    int iSentRecords = 0;
-    //		
+    //
     //	  #pragma pack(1)
     //    struct _tPDMLoadRequest
     //    {
     //        uint16_t    u16RecordID;
     //    }*psPDMLoadRecordRequest = (struct _tPDMLoadRequest *)pvMessage;
-    //
+    //    #pragma pack()
     //#define PDM_BLOCK_SIZE 128
     //	  #pragma pack(1)
     //    struct _tPDMLoadResponse
@@ -183,7 +266,7 @@ static void PDM_HandleLoadRequest(void *pvUser, uint16_t u16Length, void *pvMess
     //        uint32_t    u32BlockSize;
     //        uint8_t     au8Data[PDM_BLOCK_SIZE];
     //    }sLoadRecordResponse;
-    //
+    //    #pragma pack()
     //    memset(&sLoadRecordResponse, 0, sizeof(struct _tPDMLoadResponse));
     //
     //    psPDMLoadRecordRequest->u16RecordID = ntohs(psPDMLoadRecordRequest->u16RecordID);
@@ -266,8 +349,9 @@ static void PDM_HandleLoadRequest(void *pvUser, uint16_t u16Length, void *pvMess
     //    mico_rtos_unlock_mutex(&sLock);
     //    sqlite3_free(pcSQL);
 }
+#endif
 
-
+#if 0
 static void PDM_HandleSaveRequest(void *pvUser, uint16_t u16Length, void *pvMessage)
 {
     //    sqlite3_stmt *psStatement = NULL;
@@ -288,12 +372,13 @@ static void PDM_HandleSaveRequest(void *pvUser, uint16_t u16Length, void *pvMess
     //        uint32_t    u32BlockSize;
     //        uint8_t     au8Data[PDM_BLOCK_SIZE];
     //    }*psPDMSaveRecordRequest = (struct _tPDMSaveRequest *)pvMessage;
+    //		#pragma pack()
     //    #pragma pack(1)
     //    struct _tPDMSaveResponse
     //    {
     //        uint8_t     u8Status;
     //    }sSaveRecordResponse;
-    //
+    //    #pragma pack()
     //    // Default error
     //    sSaveRecordResponse.u8Status = 1;
     //
@@ -434,7 +519,7 @@ static void PDM_HandleSaveRequest(void *pvUser, uint16_t u16Length, void *pvMess
     //    mico_rtos_unlock_mutex(&sLock);
     //    sqlite3_free(pcSQL);
 }
-
+#endif
 
 
 /****************************************************************************
@@ -444,6 +529,7 @@ static void PDM_HandleSaveRequest(void *pvUser, uint16_t u16Length, void *pvMess
 * Output Para	:
 * Return Value:
 ****************************************************************************/
+#if 0
 static void PDM_HandleDeleteAllRequest(void *pvUser, uint16_t u16Length, void *pvMessage)
 {
     //sqlite3_stmt *psStatement;
@@ -452,7 +538,7 @@ static void PDM_HandleDeleteAllRequest(void *pvUser, uint16_t u16Length, void *p
     struct _tPDMDeleteAllResponse
     {
         uint8_t     u8Status;
-    }sDeleteAllResponse;
+    } sDeleteAllResponse;
 
     mico_rtos_lock_mutex(&sLock);
 
@@ -471,16 +557,16 @@ static void PDM_HandleDeleteAllRequest(void *pvUser, uint16_t u16Length, void *p
     {
         //switch(sqlite3_step(psStatement))
         {
-        //case(SQLITE_DONE):
-        //    sDeleteAllResponse.u8Status = 1;
-        //    break;
-        //case (SQLITE_ERROR):
-        //    user_zigbeePDM_log(DBG_PDM, "Error during SQL operation(%s)\n", sqlite3_errmsg(pDb));
-        //    sDeleteAllResponse.u8Status = 0;
-        //    break;
-        //default:
-        //    user_zigbeePDM_log("Unhandled return from sqlite3\n");
-        //   sDeleteAllResponse.u8Status = 0;
+            //case(SQLITE_DONE):
+            //    sDeleteAllResponse.u8Status = 1;
+            //    break;
+            //case (SQLITE_ERROR):
+            //    user_zigbeePDM_log(DBG_PDM, "Error during SQL operation(%s)\n", sqlite3_errmsg(pDb));
+            //    sDeleteAllResponse.u8Status = 0;
+            //    break;
+            //default:
+            //    user_zigbeePDM_log("Unhandled return from sqlite3\n");
+            //   sDeleteAllResponse.u8Status = 0;
         }
     }
 
@@ -497,7 +583,7 @@ static void PDM_HandleDeleteAllRequest(void *pvUser, uint16_t u16Length, void *p
     mico_rtos_unlock_mutex(&sLock);
     //sqlite3_free(pcSQL);
 }
-
+#endif
 
 /****************************************************************************/
 /***        END OF FILE                                                   ***/
