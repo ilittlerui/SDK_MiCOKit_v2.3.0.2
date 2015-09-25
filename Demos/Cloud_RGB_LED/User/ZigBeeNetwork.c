@@ -340,7 +340,7 @@ tsZCB_Node *psZCB_FindNodeIEEEAddress(uint64_t u64IEEEAddress)
         {
             int iLockAttempts = 0;
 
-            user_ZBNetwork_log("IEEE address 0x%016llX found in network\n", (unsigned long long int)u64IEEEAddress);
+            user_ZBNetwork_log("IEEE address 0x%016llX found in network", (unsigned long long int)u64IEEEAddress);
             DBG_PrintNode(psZCBNode);
 
             while (++iLockAttempts < 5)
@@ -707,7 +707,7 @@ tsZCB_NodeEndpoint *psZCB_NodeFindEndpoint(tsZCB_Node *psZCBNode, uint16_t u16Cl
     int i, j;
     tsZCB_NodeEndpoint *psEndpoint = NULL;
 
-    user_ZBNetwork_log("Node 0x%04X: Find cluster 0x%04X\n", psZCBNode->u16ShortAddress, u16ClusterID);
+    user_ZBNetwork_log("Node 0x%04X: Find cluster 0x%04X", psZCBNode->u16ShortAddress, u16ClusterID);
 
     for (i = 0; i < psZCBNode->u32NumEndpoints; i++)
     {
@@ -717,12 +717,12 @@ tsZCB_NodeEndpoint *psZCB_NodeFindEndpoint(tsZCB_Node *psZCBNode, uint16_t u16Cl
         {
             if (psEndpoint->pasClusters[j].u16ClusterID == u16ClusterID)
             {
-                user_ZBNetwork_log("Found Cluster ID on Endpoint %d\n", psEndpoint->u8Endpoint);
+                user_ZBNetwork_log("Found Cluster ID on Endpoint %d", psEndpoint->u8Endpoint);
                 return psEndpoint;
             }
         }
     }
-    user_ZBNetwork_log("Cluster 0x%04X not found on node 0x%04X\n", u16ClusterID, psZCBNode->u16ShortAddress);
+    user_ZBNetwork_log("Cluster 0x%04X not found on node 0x%04X", u16ClusterID, psZCBNode->u16ShortAddress);
     return NULL;
 }
 

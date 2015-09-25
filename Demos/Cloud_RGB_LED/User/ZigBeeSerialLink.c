@@ -56,7 +56,7 @@ tsSL_Message  sMessage;
 /***        Exported Variables                                            ***/
 /****************************************************************************/
 
-
+extern uint32_t u32ZCB_CurrentWaitSeq;
 //extern int verbosity;
 
 
@@ -169,22 +169,22 @@ teSL_Status eSL_SendMessage(uint16_t u16Type, uint16_t u16Length, void *pvMessag
         sStatus.u16MessageType = u16Type;
 
         /* Expect a status response within 100ms  在100ms内等待状态响应*/
-        eStatus = eSL_MessageWait(E_SL_MSG_STATUS, 500, &u16Length, (void**)&psStatus);
+        eStatus = eSL_MessageWait(E_SL_MSG_STATUS, 100, &u16Length, (void**)&psStatus);
 
 
         if (eStatus == E_SL_OK)
         {
-           user_ZigbeeSerialLink_log("Status: %d, Sequence %d", psStatus->eStatus, psStatus->u8SequenceNo);
+            user_ZigbeeSerialLink_log("Status: %d, Sequence %d", psStatus->eStatus, psStatus->u8SequenceNo);
             eStatus = psStatus->eStatus;
             if (eStatus == E_SL_OK)
             {
-               if (pu8SequenceNo)
+                if (pu8SequenceNo)
                 {
-                  *pu8SequenceNo = psStatus->u8SequenceNo;
+                    *pu8SequenceNo = psStatus->u8SequenceNo;
                 }
             }
-			if(psStatus != NULL)
-				free(psStatus);
+            if(psStatus != NULL)
+                free(psStatus);
         }
     }
     else
@@ -395,14 +395,61 @@ teSL_Status eSL_MessageWait(uint16_t u16Type, uint32_t u32WaitTimeout, uint16_t 
 
             if (eSL_ReadMessage(&sMessage.u16Type, &sMessage.u16Length, SL_MAX_MESSAGE_LENGTH, sMessage.au8Message,(unsigned char*)cmdACKbuff[i],strlen(cmdACKbuff[i])) == E_SL_OK)
             {
-                user_ZigbeeSerialLink_log("Get Ack,temptime:%d",temptime);
+
+                user_ZigbeeSerialLink_log("Get Ack,temptime:%d, Type %d",temptime,u16Type);
                 if(sMessage.u16Type == u16Type)
                 {
-                    *pu16Length = sMessage.u16Length;
-                    *ppvMessage = sMessage.au8Message;
-                    if(inDataBuffer)
-                        free(inDataBuffer);
-                    return E_SL_OK;
+                    if(u32ZCB_CurrentWaitSeq != 0)
+                    {
+                        uint32_t actualSeq = 0;
+                        switch(u16Type)
+                        {
+                            case E_SL_MSG_DEFAULT_RESPONSE:
+                            case E_SL_MSG_LEAVE_CONFIRMATION:
+                            case E_SL_MSG_MANAGEMENT_LQI_RESPONSE:
+                            case E_SL_MSG_IEEE_ADDRESS_RESPONSE:
+                            case E_SL_MSG_NODE_DESCRIPTOR_RESPONSE:
+                            case E_SL_MSG_SIMPLE_DESCRIPTOR_RESPONSE:
+                            case E_SL_MSG_READ_ATTRIBUTE_RESPONSE:
+                            case E_SL_MSG_ADD_GROUP_RESPONSE:
+                            case E_SL_MSG_REMOVE_GROUP_RESPONSE:
+                            case E_SL_MSG_GET_GROUP_MEMBERSHIP_RESPONSE:
+                            case E_SL_MSG_REMOVE_SCENE_RESPONSE:
+                            case E_SL_MSG_STORE_SCENE_RESPONSE:
+                            case E_SL_MSG_SCENE_MEMBERSHIP_RESPONSE:
+                                actualSeq = sMessage.au8Message[0];
+                                break;
+                            case E_SL_MSG_DATA_INDICATION:
+                                actualSeq = sMessage.au8Message[14];
+                                break;
+                            default :
+                                user_ZigbeeSerialLink_log("other type");
+                                break;
+                        }
+                        user_ZigbeeSerialLink_log("get seq :%d",actualSeq);
+                        if(actualSeq==u32ZCB_CurrentWaitSeq)
+                        {
+                            user_ZigbeeSerialLink_log("certain Seq Ack get");
+                            *pu16Length = sMessage.u16Length;
+                            *ppvMessage = sMessage.au8Message;
+                            if(inDataBuffer)
+                                free(inDataBuffer);
+                            u32ZCB_CurrentWaitSeq = 0;
+                            return E_SL_OK;
+                        }
+                        else
+                        {
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        *pu16Length = sMessage.u16Length;
+                        *ppvMessage = sMessage.au8Message;
+                        if(inDataBuffer)
+                            free(inDataBuffer);
+                        return E_SL_OK;
+                    }
                 }
             }
         }

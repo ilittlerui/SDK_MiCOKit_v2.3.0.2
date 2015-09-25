@@ -129,7 +129,7 @@ OSStatus user_main( app_context_t * const app_context )
                     {
                         user_log("Receive zigbee cmd");
 
-                        if(strlen(cloudMsg)==0)
+                        if(cloudMsgIncome==0)
                         {
                             cmdHaveDone = 0;
                             memset(cloudMsg,0x0,sizeof(cloudMsg));

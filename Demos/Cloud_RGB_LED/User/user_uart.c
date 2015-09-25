@@ -306,6 +306,7 @@ void uartRecv_thread(void *inContext)
         eStatus = E_ZCB_ERROR;
         if(cloudMsgIncome)
         {
+            user_uart_log("cloudMsg Incoming");
             if(strncmp((char*)"init",(char*)cloudMsg,cloudMsgLen)==0)
             {
                 user_uart_log("init cmd");
@@ -318,7 +319,6 @@ void uartRecv_thread(void *inContext)
                 else
                 {
                     user_uart_log("com send ok!");
-                    //send next cmd
                 }
             }
             else if(strncmp((char*)"device",(char*)cloudMsg,cloudMsgLen)==0)
@@ -348,17 +348,22 @@ void uartRecv_thread(void *inContext)
                 user_uart_log("network");
                 //DisplayZCBNetwork();
             }
+			else if(strncmp((char*)"on",(char*)cloudMsg,cloudMsgLen)==0)
+			{
+				
+			}
             else
             {
                 user_uart_log("err cmd");
             }
 
+            cmdHaveDone = 1;
+            memset(cloudMsg,0x0,sizeof(cloudMsg));
+            cloudMsgLen = 0;
+            cloudMsgIncome = 0;
+
             if(eStatus == E_ZCB_OK)
             {
-                cmdHaveDone = 1;
-                memset(cloudMsg,0x0,128);
-                cloudMsgLen = 0;
-                cloudMsgIncome = 0;
                 //把命令的处理结果放在 uartMsg 中
                 uartMsgLen = 2;
                 uartMsg[0]='o';
@@ -367,29 +372,15 @@ void uartRecv_thread(void *inContext)
             }
             else
             {
-                user_uart_log("cloudMsg handle err");
-                cmdHaveDone = 1;
-                memset(cloudMsg,0x0,128);
-                cloudMsgLen = 0;
-                cloudMsgIncome = 0;
+            user_uart_log("cloudMsg handle err");
                 //把命令的处理结果放在 uartMsg 中
                 uartMsgLen = 2;
                 uartMsg[0]='e';
                 uartMsg[1]='r';
                 uartMsg[2]='\0';
             }
+			user_uart_log("cloudMsg handle over");
         }
-
-
-
-
-
-
-
-
-
-
-
 
 
 //===========================处理uart接收=========================================================================
@@ -467,7 +458,13 @@ void uartRecv_thread(void *inContext)
             }
             else
             {
-                user_uart_log("aaa");
+                user_uart_log("rcv err cmd");
+                for(i=0; cmdbuff[cmdnum][i]!=0x0; i++)
+                {
+                    printf("%x ",cmdbuff[cmdnum][i]);
+                }
+                user_uart_log("\r\n");
+
             }
 //        //2.deal the date according the massage type
 //
@@ -476,16 +473,6 @@ void uartRecv_thread(void *inContext)
         }
         memset(cmdbuff[0], 0x0, sizeof(cmdbuff[0])* cmdnum);
         cmdnum = 0;
-
-        // transfer ACK msg to cloud
-        //err = MicoFogCloudMsgSend(Context, NULL, 0, inDataBuffer, recvlen);
-        //if(kNoErr == err){
-        // user_uart_log("Msg send to cloud success!");
-        //}
-        //else{
-        //  user_uart_log("Msgsend to cloud failed! err=%d.", err);
-        //}
-
     }
 
 exit:

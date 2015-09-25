@@ -1,5 +1,5 @@
 [DebugChecksum]
-Checksum=-962348704
+Checksum=372326700
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -86,6 +86,10 @@ ShowTimeLog=1
 SumEnabled=0
 ShowTimeSum=1
 SumSortOrder=0
+[Disassemble mode]
+mode=0
+[Breakpoints2]
+Count=0
 [Log file]
 LoggingEnabled=_ 0
 LogFile=_ ""
@@ -93,6 +97,10 @@ Category=_ 0
 [TermIOLog]
 LoggingEnabled=_ 0
 LogFile=_ ""
+[Aliases]
+A0=_ "C:\Users\bobo\Documents\WICED\Wiced-SDK-2.4.0\WICED-SDK\Wiced\RTOS\FreeRTOS\ver7.1.0\Source\portable\IAR\ARM_CM4F\portasm.s" ""
+Count=1
+SuppressDialog=0
 [DriverProfiling]
 Enabled=0
 Mode=3
@@ -107,11 +115,3 @@ ShowTiming=1
 Frequency=10000
 Probe0=I0
 ProbeSetup0=2 1 1 2 0 0
-[Disassemble mode]
-mode=0
-[Breakpoints2]
-Count=0
-[Aliases]
-A0=_ "C:\Users\bobo\Documents\WICED\Wiced-SDK-2.4.0\WICED-SDK\Wiced\RTOS\FreeRTOS\ver7.1.0\Source\portable\IAR\ARM_CM4F\portasm.s" ""
-Count=1
-SuppressDialog=0
