@@ -30,9 +30,6 @@ extern "C" {
 /****************************************************************************/
 #define UART_FOR_MCU                        MICO_UART_2
 
-//#define PACKED __attribute__((__packed__))
-
-
 
 #define DBG_SERIALLINK 0
 #define DBG_SERIALLINK_CB 0
@@ -43,7 +40,7 @@ extern "C" {
 #define SL_ESC_CHAR     0x02
 #define SL_END_CHAR     0x03
 
-#define SL_MAX_MESSAGE_LENGTH 256
+#define SL_MAX_MESSAGE_LENGTH 128
 
 #define SL_MAX_MESSAGE_QUEUES 3
 
@@ -78,21 +75,21 @@ typedef enum
 /** Serial link message types */
 typedef enum
 {
-    /* Common Commands */
+/* Common Commands */
     E_SL_MSG_STATUS                         =   0x8000,
     E_SL_MSG_LOG                            =   0x8001,
-
+ 
     E_SL_MSG_DATA_INDICATION                =   0x8002,
-
+ 
     E_SL_MSG_NODE_CLUSTER_LIST              =   0x8003,
     E_SL_MSG_NODE_ATTRIBUTE_LIST            =   0x8004,
     E_SL_MSG_NODE_COMMAND_ID_LIST           =   0x8005,
     E_SL_MSG_RESTART_PROVISIONED            =   0x8006,
     E_SL_MSG_RESTART_FACTORY_NEW            =   0x8007,
-
+ 
     E_SL_MSG_GET_VERSION                    =   0x0010,
     E_SL_MSG_VERSION_LIST                   =   0x8010,
-
+ 
     E_SL_MSG_SET_EXT_PANID                  =   0x0020,
     E_SL_MSG_SET_CHANNELMASK                =   0x0021,
     E_SL_MSG_SET_SECURITY                   =   0x0022,
@@ -103,14 +100,14 @@ typedef enum
     E_SL_MSG_NETWORK_WHITELIST_ENABLE       =   0x0027,
     E_SL_MSG_AUTHENTICATE_DEVICE_REQUEST    =   0x0028,
     E_SL_MSG_AUTHENTICATE_DEVICE_RESPONSE   =   0x8028,
-
+ 
     E_SL_MSG_RESET                          =   0x0011,
     E_SL_MSG_ERASE_PERSISTENT_DATA          =   0x0012,
     E_SL_MSG_GET_PERMIT_JOIN                =   0x0014,
     E_SL_MSG_GET_PERMIT_JOIN_RESPONSE       =   0x8014,
     E_SL_MSG_BIND                           =   0x0030,
     E_SL_MSG_UNBIND                         =   0x0031,
-
+ 
     E_SL_MSG_NETWORK_ADDRESS_REQUEST        =   0x0040,
     E_SL_MSG_IEEE_ADDRESS_REQUEST           =   0x0041,
     E_SL_MSG_IEEE_ADDRESS_RESPONSE          =   0x8041,
@@ -132,14 +129,14 @@ typedef enum
     E_SL_MSG_DEVICE_ANNOUNCE                =   0x004D,
     E_SL_MSG_MANAGEMENT_LQI_REQUEST         =   0x004E,
     E_SL_MSG_MANAGEMENT_LQI_RESPONSE        =   0x804E,
-
+    
     E_SL_MSG_READ_ATTRIBUTE_REQUEST         =   0x0100,
     E_SL_MSG_READ_ATTRIBUTE_RESPONSE        =   0x8100,
     E_SL_MSG_DEFAULT_RESPONSE               =   0x8101,
     E_SL_MSG_ATTRIBUTE_REPORT               =   0x8102,
     E_SL_MSG_WRITE_ATTRIBUTE_REQUEST        =   0x0103,
     E_SL_MSG_WRITE_ATTRIBUTE_RESPONSE       =   0x8103,
-
+ 
     /* Group Cluster */
     E_SL_MSG_ADD_GROUP_REQUEST              =   0x0060,
     E_SL_MSG_ADD_GROUP_RESPONSE             =   0x8060,
@@ -150,21 +147,21 @@ typedef enum
     E_SL_MSG_REMOVE_GROUP_RESPONSE          =   0x8063,
     E_SL_MSG_REMOVE_ALL_GROUPS              =   0x0064,
     E_SL_MSG_ADD_GROUP_IF_IDENTIFY          =   0x0065,
-
+ 
     /* Identify Cluster */
     E_SL_MSG_IDENTIFY_SEND                  =   0x0070,
     E_SL_MSG_IDENTIFY_QUERY                 =   0x0071,
-
+ 
     /* Level Cluster */
     E_SL_MSG_MOVE_TO_LEVEL                  =   0x0080,
     E_SL_MSG_MOVE_TO_LEVEL_ONOFF            =   0x0081,
     E_SL_MSG_MOVE_STEP                      =   0x0082,
     E_SL_MSG_MOVE_STOP_MOVE                 =   0x0083,
     E_SL_MSG_MOVE_STOP_ONOFF                =   0x0084,
-
+ 
     /* On/Off Cluster */
     E_SL_MSG_ONOFF                          =   0x0092,
-
+ 
     /* Scenes Cluster */
     E_SL_MSG_VIEW_SCENE                     =   0x00A0,
     E_SL_MSG_ADD_SCENE                      =   0x00A1,
@@ -176,7 +173,7 @@ typedef enum
     E_SL_MSG_RECALL_SCENE                   =   0x00A5,
     E_SL_MSG_SCENE_MEMBERSHIP_REQUEST       =   0x00A6,
     E_SL_MSG_SCENE_MEMBERSHIP_RESPONSE      =   0x80A6,
-
+ 
     /* Colour Cluster */
     E_SL_MSG_MOVE_TO_HUE                    =   0x00B0,
     E_SL_MSG_MOVE_HUE                       =   0x00B1,
@@ -188,24 +185,24 @@ typedef enum
     E_SL_MSG_MOVE_TO_COLOUR                 =   0x00B7,
     E_SL_MSG_MOVE_COLOUR                    =   0x00B8,
     E_SL_MSG_STEP_COLOUR                    =   0x00B9,
-
-    /* ZLL Commands */
+ 
+/* ZLL Commands */
     /* Touchlink */
     E_SL_MSG_INITIATE_TOUCHLINK             =   0x00D0,
     E_SL_MSG_TOUCHLINK_STATUS               =   0x00D1,
-
+ 
     /* Identify Cluster */
     E_SL_MSG_IDENTIFY_TRIGGER_EFFECT        =   0x00E0,
-
+ 
     /* On/Off Cluster */
     E_SL_MSG_ONOFF_TIMED                    =   0x0093,
     E_SL_MSG_ONOFF_EFFECTS                  =   0x0094,
-
+ 
     /* Scenes Cluster */
     E_SL_MSG_ADD_ENHANCED_SCENE             =   0x00A7,
     E_SL_MSG_VIEW_ENHANCED_SCENE            =   0x00A8,
     E_SL_MSG_COPY_SCENE                     =   0x00A9,
-
+ 
     /* Colour Cluster */
     E_SL_MSG_ENHANCED_MOVE_TO_HUE           =   0x00BA,
     E_SL_MSG_ENHANCED_MOVE_HUE              =   0x00BB,
@@ -216,12 +213,12 @@ typedef enum
     E_SL_MSG_MOVE_TO_COLOUR_TEMPERATURE     =   0x00C0,
     E_SL_MSG_MOVE_COLOUR_TEMPERATURE        =   0x00C1,
     E_SL_MSG_STEP_COLOUR_TEMPERATURE        =   0x00C2,
-
-    /* ZHA Commands */
+ 
+/* ZHA Commands */
     /* Door Lock Cluster */
     E_SL_MSG_LOCK_UNLOCK_DOOR               =   0x00F0,
-
-    /* Persistant data manager messages */
+    
+/* Persistant data manager messages */
     E_SL_MSG_PDM_AVAILABLE_REQUEST          =   0x0300,
     E_SL_MSG_PDM_AVAILABLE_RESPONSE         =   0x8300,
     E_SL_MSG_PDM_SAVE_RECORD_REQUEST        =   0x0200,
@@ -230,6 +227,11 @@ typedef enum
     E_SL_MSG_PDM_LOAD_RECORD_RESPONSE       =   0x8201,
     E_SL_MSG_PDM_DELETE_ALL_RECORDS_REQUEST =   0x0202,
     E_SL_MSG_PDM_DELETE_ALL_RECORDS_RESPONSE=   0x8202,
+
+    /* IAS Cluster */
+    E_SL_MSG_SEND_IAS_ZONE_ENROLL_RSP			=	   0x0400,
+    E_SL_MSG_IAS_ZONE_STATUS_CHANGE_NOTIFY		=	   0x8401,
+
 } teSL_MsgType;
 
 
@@ -351,21 +353,19 @@ typedef struct
 
     // Array of listeners for messages
     // eSL_MessageWait uses this array to wait on incoming messages.
-    struct
-    {
-        uint16_t u16Type;
-        uint16_t u16Length;
-        uint8_t *pu8Message[100];
-#ifndef WIN32
-        mico_mutex_t mutex;
-        //pthread_cond_t cond_data_available;
-#else
+//    struct
+//    {
+//        uint16_t u16Type;
+//        uint16_t u16Length;
+//        uint8_t *pu8Message[100];
+//#ifndef WIN32
+//        mico_mutex_t mutex;
+//        //pthread_cond_t cond_data_available;
+//#else
+//
+//#endif /* WIN32 */
+//    } asReaderMessageQueue[SL_MAX_MESSAGE_QUEUES];
 
-#endif /* WIN32 */
-    } asReaderMessageQueue[SL_MAX_MESSAGE_QUEUES];
-
-
-    //tsUtilsThread sSerialReader;
 } tsSerialLink;
 
 
@@ -376,11 +376,6 @@ typedef struct
     tprSL_MessageCallback   prCallback;     /**< User supplied callback function for this message type */
     void *                  pvUser;         /**< User supplied data for the callback function */
 } tsCallbackThreadData;
-
-
-
-
-
 
 
 
@@ -399,12 +394,6 @@ typedef struct
 /****************************************************************************/
 /***        Exported Functions                                            ***/
 /****************************************************************************/
-
-
-teSL_Status eSL_Init();
-
-teSL_Status eSL_Destroy(void);
-
 
 /** Send a command message to the serial device.
 *  This also listens for the returned Status message.

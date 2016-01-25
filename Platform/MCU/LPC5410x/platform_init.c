@@ -103,12 +103,12 @@ USED SysTick_Type *g_pSysTick = SysTick;
 #ifndef MICO_DISABLE_STDIO
 static const mico_uart_config_t stdio_uart_config =
 {
-  .baud_rate    = STDIO_UART_BAUDRATE,
-  .data_width   = DATA_WIDTH_8BIT,
-  .parity       = NO_PARITY,
-  .stop_bits    = STOP_BITS_1,
-  .flow_control = FLOW_CONTROL_DISABLED,
-  .flags        = 0,
+    .baud_rate    = STDIO_UART_BAUDRATE,
+    .data_width   = DATA_WIDTH_8BIT,
+    .parity       = NO_PARITY,
+    .stop_bits    = STOP_BITS_1,
+    .flow_control = FLOW_CONTROL_DISABLED,
+    .flags        = 0,
 };
 
 static volatile ring_buffer_t stdio_rx_buffer;
@@ -123,63 +123,63 @@ mico_mutex_t        stdio_tx_mutex;
 #if defined ( __ICCARM__ )
 static inline void __jump_to( uint32_t addr )
 {
-  __asm( "MOV R1, #0x00000001" );
-  __asm( "ORR R0, R0, R1" );  /* Last bit of jump address indicates whether destination is Thumb or ARM code */
-  __asm( "BLX R0" );
+    __asm( "MOV R1, #0x00000001" );
+    __asm( "ORR R0, R0, R1" );  /* Last bit of jump address indicates whether destination is Thumb or ARM code */
+    __asm( "BLX R0" );
 }
 
 
 #elif defined ( __GNUC__ )
 __attribute__( ( always_inline ) ) static __INLINE void __jump_to( uint32_t addr )
 {
-  addr |= 0x00000001;  /* Last bit of jump address indicates whether destination is Thumb or ARM code */
-  __ASM volatile ("BX %0" : : "r" (addr) );
+    addr |= 0x00000001;  /* Last bit of jump address indicates whether destination is Thumb or ARM code */
+    __ASM volatile ("BX %0" : : "r" (addr) );
 }
 
 
 #elif defined ( __CC_ARM )
 static void __asm __jump_to( uint32_t addr )
 {
-  MOV R1, #0x00000001
-  ORR R0, R0, R1  /* Last bit of jump address indicates whether destination is Thumb or ARM code */
-  BLX R0
+    MOV R1, #0x00000001
+    ORR R0, R0, R1  /* Last bit of jump address indicates whether destination is Thumb or ARM code */
+    BLX R0
 }
 #endif
 
 /*Boot to mico application form APPLICATION_START_ADDRESS defined in platform_common_config.h */
 void startApplication( uint32_t app_addr )
 {
-  uint32_t* stack_ptr;
-  uint32_t* start_ptr;
+    uint32_t* stack_ptr;
+    uint32_t* start_ptr;
 
-  //if (((*(volatile uint32_t*)app_addr) & 0x2FFE0000 ) != 0x20000000)
-  //app_addr += 0x200;
-  /* Test if user code is programmed starting from address "ApplicationAddress" */
- // if (((*(volatile uint32_t*)app_addr) & 0x2FFE0000 ) == 0x20000000)
-  {
-    SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
+    //if (((*(volatile uint32_t*)app_addr) & 0x2FFE0000 ) != 0x20000000)
+    //app_addr += 0x200;
+    /* Test if user code is programmed starting from address "ApplicationAddress" */
+// if (((*(volatile uint32_t*)app_addr) & 0x2FFE0000 ) == 0x20000000)
+    {
+        SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
 
-    /* Clear all interrupt enabled by bootloader */
-    for (int i = 0; i < 8; i++ )
-        NVIC->ICER[i] = 0xFFFFFFFF;
+        /* Clear all interrupt enabled by bootloader */
+        for (int i = 0; i < 8; i++ )
+            NVIC->ICER[i] = 0xFFFFFFFF;
 
-    stack_ptr = (uint32_t*) app_addr;  /* Initial stack pointer is first 4 bytes of vector table */
-    start_ptr = ( stack_ptr + 1 );  /* Reset vector is second 4 bytes of vector table */
+        stack_ptr = (uint32_t*) app_addr;  /* Initial stack pointer is first 4 bytes of vector table */
+        start_ptr = ( stack_ptr + 1 );  /* Reset vector is second 4 bytes of vector table */
 
-    #if defined ( __ICCARM__)
-    __ASM( "MOV LR,        #0xFFFFFFFF" );
-    __ASM( "MOV R1,        #0x01000000" );
-    __ASM( "MSR APSR_nzcvq,     R1" );
-    __ASM( "MOV R1,        #0x00000000" );
-    __ASM( "MSR PRIMASK,   R1" );
-    __ASM( "MSR FAULTMASK, R1" );
-    __ASM( "MSR BASEPRI,   R1" );
-    __ASM( "MSR CONTROL,   R1" );
-    #endif
+#if defined ( __ICCARM__)
+        __ASM( "MOV LR,        #0xFFFFFFFF" );
+        __ASM( "MOV R1,        #0x01000000" );
+        __ASM( "MSR APSR_nzcvq,     R1" );
+        __ASM( "MOV R1,        #0x00000000" );
+        __ASM( "MSR PRIMASK,   R1" );
+        __ASM( "MSR FAULTMASK, R1" );
+        __ASM( "MSR BASEPRI,   R1" );
+        __ASM( "MSR CONTROL,   R1" );
+#endif
 
-    __set_MSP( *stack_ptr );
-    __jump_to( *start_ptr );
-  }
+        __set_MSP( *stack_ptr );
+        __jump_to( *start_ptr );
+    }
 }
 
 void platform_mcu_reset( void )
@@ -212,28 +212,28 @@ void DMAInit(void)
 
 void AsyncClockCfg(void)
 {
-	// make sure SystemCoreClock is multiples of 12MHz
-	if (SystemCoreClock % (48 * 1000 * 1000) == 0
-)
-	{
-		// configure 48MHz
-		g_pASys->ASYNCCLKDIV = SystemCoreClock / 48000000;
-	}
-	else if (SystemCoreClock % (24 * 1000 * 1000) == 0)
-	{
-		// configure 24MHz
-		g_pASys->ASYNCCLKDIV = SystemCoreClock / 24000000;
-	}
-	else if (SystemCoreClock % (12 * 1000 * 1000) == 0)
-	{
-		// make ASync clock at 12MHz
-		g_pASys->ASYNCCLKDIV = SystemCoreClock / 12000000;
+    // make sure SystemCoreClock is multiples of 12MHz
+    if (SystemCoreClock % (48 * 1000 * 1000) == 0
+       )
+    {
+        // configure 48MHz
+        g_pASys->ASYNCCLKDIV = SystemCoreClock / 48000000;
+    }
+    else if (SystemCoreClock % (24 * 1000 * 1000) == 0)
+    {
+        // configure 24MHz
+        g_pASys->ASYNCCLKDIV = SystemCoreClock / 24000000;
+    }
+    else if (SystemCoreClock % (12 * 1000 * 1000) == 0)
+    {
+        // make ASync clock at 12MHz
+        g_pASys->ASYNCCLKDIV = SystemCoreClock / 12000000;
 
-	}
-	else
-		while(1);
-	// make USART clock = AsyncClk * 22 / 256, so it is multiples of 11.0592MHz
-	g_pASys->FRGCTRL = 255 | 22<<8;
+    }
+    else
+        while(1);
+    // make USART clock = AsyncClk * 22 / 256, so it is multiples of 11.0592MHz
+    g_pASys->FRGCTRL = 255 | 22<<8;
 }
 /* MCU common clock initialisation function
 * This brings up enough clocks to allow the processor to run quickly while initialising memory.
@@ -242,7 +242,7 @@ void AsyncClockCfg(void)
 extern void PwrCtlStateReset(void);
 void init_clocks( void )
 {
-	// >>> rocky: make sure linker does not remove
+    // >>> rocky: make sure linker does not remove
     g_pSys = g_pSys;
     g_pASys = g_pASys;
     g_pIO = g_pIO;
@@ -251,9 +251,9 @@ void init_clocks( void )
     g_pDMA = g_pDMA;
     g_pSPI0 = g_pSPI0;
     g_pSPI1 = g_pSPI1;
-  	g_pPMU = g_pPMU;
-  	// <<<
-  	g_pSys = LPC_SYSCON;
+    g_pPMU = g_pPMU;
+    // <<<
+    g_pSys = LPC_SYSCON;
 
     g_pSys->PDRUNCFGCLR = 0x0FUL<<13;   // Turn on power for all SRAM blocks
     g_pSys->AHBCLKCTRL[0] |= 0x18;  	// Turn on clock for all SRAM blocks
@@ -263,51 +263,51 @@ void init_clocks( void )
 //  extern void *__Vectors;
 //  SCB->VTOR = (uint32_t) &__Vectors;
 
-  fpuInit();
+    fpuInit();
 
     PwrCtlStateReset();
 
 #ifdef BOOTLOADER
-	// enable clock to InMux, PinINT, IOCON, GPIO0 & 1
-	g_pSys->AHBCLKCTRLSET[0] = 1UL<<11 | 1UL<<18 | 1UL<<13 | 1UL<<14 | 1UL<<15;
-	// reset InMux, PinINT, IOCON, GPIO0 & 1
-	g_pSys->PRESETCTRLSET[0] = 1UL<<11 | 1UL<<18 | 1UL<<13 | 1UL<<14 | 1UL<<15;
-	g_pSys->PRESETCTRLCLR[0] = 1UL<<11 | 1UL<<18 | 1UL<<13 | 1UL<<14 | 1UL<<15;
+    // enable clock to InMux, PinINT, IOCON, GPIO0 & 1
+    g_pSys->AHBCLKCTRLSET[0] = 1UL<<11 | 1UL<<18 | 1UL<<13 | 1UL<<14 | 1UL<<15;
+    // reset InMux, PinINT, IOCON, GPIO0 & 1
+    g_pSys->PRESETCTRLSET[0] = 1UL<<11 | 1UL<<18 | 1UL<<13 | 1UL<<14 | 1UL<<15;
+    g_pSys->PRESETCTRLCLR[0] = 1UL<<11 | 1UL<<18 | 1UL<<13 | 1UL<<14 | 1UL<<15;
 
-	/* Turn on the IRC by clearing the power down bit */
-	Chip_SYSCON_PowerUp(SYSCON_PDRUNCFG_PD_IRC_OSC | SYSCON_PDRUNCFG_PD_IRC);
-	/* Set main clock source to the system PLL. This will drive 24MHz
-	   for the main clock and 24MHz for the system clock */
-	Chip_Clock_SetMainClockSource(SYSCON_MAINCLKSRC_IRC);
+    /* Turn on the IRC by clearing the power down bit */
+    Chip_SYSCON_PowerUp(SYSCON_PDRUNCFG_PD_IRC_OSC | SYSCON_PDRUNCFG_PD_IRC);
+    /* Set main clock source to the system PLL. This will drive 24MHz
+       for the main clock and 24MHz for the system clock */
+    Chip_Clock_SetMainClockSource(SYSCON_MAINCLKSRC_IRC);
 
-	/* Set system clock divider to 1 */
-	Chip_Clock_SetSysClockDiv(1);
+    /* Set system clock divider to 1 */
+    Chip_Clock_SetSysClockDiv(1);
 
-	Chip_SYSCON_Enable_ASYNC_Syscon(true);
+    Chip_SYSCON_Enable_ASYNC_Syscon(true);
 
-	g_pASys->ASYNCAPBCLKCTRL = 1;	// enable Async APB
+    g_pASys->ASYNCAPBCLKCTRL = 1;	// enable Async APB
 
-	// select main clock (CPU clock) as ASync clock for faster SPI
-	g_pASys->ASYNCAPBCLKSELA = 0;
-	g_pASys->ASYNCAPBCLKSELB = 0;
+    // select main clock (CPU clock) as ASync clock for faster SPI
+    g_pASys->ASYNCAPBCLKSELA = 0;
+    g_pASys->ASYNCAPBCLKSELB = 0;
 
-	Chip_Clock_SetAsyncSysconClockSource(SYSCON_ASYNC_MAINCLK);
+    Chip_Clock_SetAsyncSysconClockSource(SYSCON_ASYNC_MAINCLK);
 
-	/* Setup FLASH access to 1 clock */
-	Chip_FMC_SetFLASHAccess(FLASHTIM_20MHZ_CPU);
+    /* Setup FLASH access to 1 clock */
+    Chip_FMC_SetFLASHAccess(FLASHTIM_20MHZ_CPU);
 
-	// set frequency for mico task
-	TaskProcNotify(MICO_TASK, 1);
+    // set frequency for mico task
+    TaskProcNotify(MICO_TASK, 1);
 
-	AsyncClockCfg();
+    AsyncClockCfg();
 
 #endif
 
 #ifdef NO_MICO_RTOS
-  SysTick_Config( SystemCoreClock / 1000 );
+    SysTick_Config( SystemCoreClock / 1000 );
 #endif
-	//mico_cpu_clock_hz = SystemCoreClock;
-  	g_pSys->AHBCLKCTRL[0] |= 0x18;    // Opened SRAM1 and SRAM2
+    //mico_cpu_clock_hz = SystemCoreClock;
+    g_pSys->AHBCLKCTRL[0] |= 0x18;    // Opened SRAM1 and SRAM2
 
 }
 
@@ -322,58 +322,59 @@ WEAK void init_memory( void )
 // extern uint32_t CFG_PRIO_BITS;
 void init_architecture( void )
 {
-  	DMAInit();
+    DMAInit();
     platform_init_peripheral_irq_priorities();
     g_pSys->FIFOCTRL =0;
 
-  /* Initialise GPIO IRQ manager */
-  platform_gpio_irq_manager_init();
+    /* Initialise GPIO IRQ manager */
+    platform_gpio_irq_manager_init();
 
 #ifndef MICO_DISABLE_STDIO
 #ifndef NO_MICO_RTOS
-  mico_rtos_init_mutex( &stdio_tx_mutex );
-  mico_rtos_unlock_mutex ( &stdio_tx_mutex );
-  mico_rtos_init_mutex( &stdio_rx_mutex );
-  mico_rtos_unlock_mutex ( &stdio_rx_mutex );
+    mico_rtos_init_mutex( &stdio_tx_mutex );
+    mico_rtos_unlock_mutex ( &stdio_tx_mutex );
+    mico_rtos_init_mutex( &stdio_rx_mutex );
+    mico_rtos_unlock_mutex ( &stdio_rx_mutex );
 #endif
 
-  ring_buffer_init  ( (ring_buffer_t*)&stdio_rx_buffer, (uint8_t*)stdio_rx_data, STDIO_BUFFER_SIZE );
-  platform_uart_init( &platform_uart_drivers[STDIO_UART], &platform_uart_peripherals[STDIO_UART], &stdio_uart_config, (ring_buffer_t*)&stdio_rx_buffer );
+    ring_buffer_init  ( (ring_buffer_t*)&stdio_rx_buffer, (uint8_t*)stdio_rx_data, STDIO_BUFFER_SIZE );
+    platform_uart_init( &platform_uart_drivers[STDIO_UART], &platform_uart_peripherals[STDIO_UART], &stdio_uart_config, (ring_buffer_t*)&stdio_rx_buffer );
 #endif
 
-  /* Ensure 802.11 device is in reset. */
-  host_platform_init( );
+    /* Ensure 802.11 device is in reset. */
+    host_platform_init( );
 
 #ifdef BOOTLOADER
-  return;
+    return;
 #else
 
-  /* Initialise RTC */
-  platform_rtc_init( );
+    /* Initialise RTC */
+    platform_rtc_init( );
 
 #ifndef MICO_DISABLE_MCU_POWERSAVE
-  /* Initialise MCU powersave */
-  platform_mcu_powersave_init( );
+    /* Initialise MCU powersave */
+    platform_mcu_powersave_init( );
 #endif /* ifndef MICO_DISABLE_MCU_POWERSAVE */
 
-  platform_mcu_powersave_disable( );
+    platform_mcu_powersave_disable( );
 #endif
 }
 
 OSStatus stdio_hardfault( char* data, uint32_t size )
 {
-  extern const platform_uart_t       platform_uart_peripherals[];
+    extern const platform_uart_t       platform_uart_peripherals[];
 #ifndef MICO_DISABLE_STDIO
-  uint32_t idx;
-  for(idx = 0; idx < size; idx++){
+    uint32_t idx;
+    for(idx = 0; idx < size; idx++)
+    {
 // Magicoe TODO delete
 //    while ( ( platform_uart_peripherals[ STDIO_UART ].port->SR & USART_SR_TXE ) == 0 );
 //    platform_uart_peripherals[ STDIO_UART ].port->DR = (data[idx] & (uint16_t)0x01FF);
-    while ((Chip_UART_GetStatus(platform_uart_peripherals[STDIO_UART].port) & UART_STAT_TXRDY) == 0);
-    Chip_UART_SendByte(platform_uart_peripherals[STDIO_UART].port, (data[idx] & (uint16_t)0x00FF) );
-  }
+        while ((Chip_UART_GetStatus(platform_uart_peripherals[STDIO_UART].port) & UART_STAT_TXRDY) == 0);
+        Chip_UART_SendByte(platform_uart_peripherals[STDIO_UART].port, (data[idx] & (uint16_t)0x00FF) );
+    }
 #endif
-  return kNoErr;
+    return kNoErr;
 }
 
 /******************************************************
@@ -386,19 +387,19 @@ static volatile uint32_t no_os_tick = 0;
 
 void SysTick_Handler(void)
 {
-  no_os_tick ++;
-  platform_watchdog_kick( );
+    no_os_tick ++;
+    platform_watchdog_kick( );
 }
 
 uint32_t mico_get_time_no_os(void)
 {
-  return no_os_tick;
+    return no_os_tick;
 }
 
 void mico_thread_msleep_no_os(uint32_t milliseconds)
 {
-  int tick_delay_start = mico_get_time_no_os();
-  while(mico_get_time_no_os() < tick_delay_start+milliseconds);
+    int tick_delay_start = mico_get_time_no_os();
+    while(mico_get_time_no_os() < tick_delay_start+milliseconds);
 }
 #endif
 

@@ -23,6 +23,7 @@
 #include "ZigBeeConstant.h"
 #include "ZigBeeNetwork.h"
 #include "ZigBeeSerialLink.h"
+#include "ZigBeePDM.h"
 
 
 
@@ -136,6 +137,74 @@ void DBG_PrintNode(tsZCB_Node *psNode)
 #endif
 }
 
+
+/****************************************************************************
+* Function	: DBG_PrintDetailNode
+* Description	: 打印节点详细信息
+* Input Para	:
+* Output Para	:
+* Return Value:
+****************************************************************************/
+void DBG_PrintDetailNode(tsZCB_Node *psNode)
+{
+    int i, j, k;
+    //tsZCB_Node *currentNodep = psNode;
+
+    while(psNode != NULL)
+    {
+        user_ZBNetwork_log("Node Short Address: 0x%04X, IEEE Address: 0x%016llX MAC Capability 0x%02X Device ID 0x%04X",
+                           psNode->u16ShortAddress,
+                           (unsigned long long int)psNode->u64IEEEAddress,
+                           psNode->u8MacCapability,
+                           psNode->u16DeviceID
+                          );
+
+        for (i = 0; i < psNode->u32NumEndpoints; i++)
+        {
+            const char *pcProfileName = NULL;
+            tsZCB_NodeEndpoint  *psEndpoint = &psNode->pasEndpoints[i];
+
+            switch (psEndpoint->u16ProfileID)
+            {
+                case (0x0104):
+                    pcProfileName = "ZHA";
+                    break;
+                case (0xC05E):
+                    pcProfileName = "ZLL";
+                    break;
+                default:
+                    pcProfileName = "Unknown";
+                    break;
+            }
+
+            user_ZBNetwork_log("  Endpoint %d - Profile 0x%04X (%s)",
+                               psEndpoint->u8Endpoint,
+                               psEndpoint->u16ProfileID,
+                               pcProfileName
+                              );
+
+            for (j = 0; j < psEndpoint->u32NumClusters; j++)
+            {
+                tsZCB_NodeCluster *psCluster = &psEndpoint->pasClusters[j];
+                user_ZBNetwork_log("    Cluster ID 0x%04X", psCluster->u16ClusterID);
+
+                user_ZBNetwork_log("      Attributes:");
+                for (k = 0; k < psCluster->u32NumAttributes; k++)
+                {
+                    user_ZBNetwork_log("        Attribute ID 0x%04X", psCluster->pau16Attributes[k]);
+                }
+
+                user_ZBNetwork_log("      Commands:");
+                for (k = 0; k < psCluster->u32NumCommands; k++)
+                {
+                    user_ZBNetwork_log("        Command ID 0x%02X", psCluster->pau8Commands[k]);
+                }
+            }
+        }
+
+        psNode = psNode->psNext;
+    }
+}
 /****************************************************************************
 * Function	: eZCB_AddNode
 * Description	: Add Node
@@ -147,22 +216,20 @@ teZcbStatus eZCB_AddNode(uint16_t u16ShortAddress, uint64_t u64IEEEAddress, uint
 {
     teZcbStatus eStatus = E_ZCB_OK;
     tsZCB_Node *psZCBNode = &sZCB_Network.sNodes;
-	user_ZBNetwork_log("add node");
     mico_rtos_lock_mutex(&sZCB_Network.sLock);
 
-    while (psZCBNode->psNext)
+    while (psZCBNode->psNext)		//判断现有设备列表
     {
         if (u64IEEEAddress)
         {
-            if (psZCBNode->psNext->u64IEEEAddress == u64IEEEAddress)
+            if (psZCBNode->psNext->u64IEEEAddress == u64IEEEAddress)	//如果长地址相等，更新短地址
             {
-                user_ZBNetwork_log("IEEE address already in network - update short address");
+                //user_ZBNetwork_log("IEEE address already in network - update short address");
                 mico_rtos_lock_mutex(&psZCBNode->psNext->sLock);
                 psZCBNode->psNext->u16ShortAddress = u16ShortAddress;
-
                 if (ppsZCBNode)
                 {
-                    *ppsZCBNode = psZCBNode->psNext;
+                    *ppsZCBNode = psZCBNode->psNext;	//*ppsZCBNode 指向当前节点
                 }
                 else
                 {
@@ -170,9 +237,9 @@ teZcbStatus eZCB_AddNode(uint16_t u16ShortAddress, uint64_t u64IEEEAddress, uint
                 }
                 goto done;
             }
-            if (psZCBNode->psNext->u16ShortAddress == u16ShortAddress)
+            if (psZCBNode->psNext->u16ShortAddress == u16ShortAddress)	//如果短地址相等，更新长地址
             {
-                user_ZBNetwork_log("Short address already in network - update IEEE address");
+                //user_ZBNetwork_log("Short address already in network - update IEEE address");
                 mico_rtos_lock_mutex(&psZCBNode->psNext->sLock);
                 psZCBNode->psNext->u64IEEEAddress = u64IEEEAddress;
 
@@ -191,7 +258,7 @@ teZcbStatus eZCB_AddNode(uint16_t u16ShortAddress, uint64_t u64IEEEAddress, uint
         {
             if (psZCBNode->psNext->u16ShortAddress == u16ShortAddress)
             {
-                user_ZBNetwork_log("Short address already in network");
+                //user_ZBNetwork_log("Short address already in network");
                 mico_rtos_lock_mutex(&psZCBNode->psNext->sLock);
 
                 if (ppsZCBNode)
@@ -209,6 +276,7 @@ teZcbStatus eZCB_AddNode(uint16_t u16ShortAddress, uint64_t u64IEEEAddress, uint
         psZCBNode = psZCBNode->psNext;
     }
 
+    /*如果是一个新的设备*/
     psZCBNode->psNext = malloc(sizeof(tsZCB_Node));
 
     if (!psZCBNode->psNext)
@@ -226,9 +294,8 @@ teZcbStatus eZCB_AddNode(uint16_t u16ShortAddress, uint64_t u64IEEEAddress, uint
     psZCBNode->psNext->u64IEEEAddress   = u64IEEEAddress;
     psZCBNode->psNext->u8MacCapability  = u8MacCapability;
     psZCBNode->psNext->u16DeviceID      = u16DeviceID;
+    psZCBNode->psNext->psNext           = NULL;
 
-    user_ZBNetwork_log("Created new Node");
-    DBG_PrintNode(psZCBNode->psNext);
 
     if (ppsZCBNode)
     {
@@ -238,6 +305,7 @@ teZcbStatus eZCB_AddNode(uint16_t u16ShortAddress, uint64_t u64IEEEAddress, uint
 
 done:
     mico_rtos_unlock_mutex(&sZCB_Network.sLock);
+    mico_rtos_unlock_mutex(&psZCBNode->psNext->sLock);
     return eStatus;
 }
 
@@ -273,9 +341,9 @@ teZcbStatus eZCB_RemoveNode(tsZCB_Node *psZCBNode)
         {
             if (psZCBCurrentNode->psNext == psZCBNode)
             {
-                user_ZBNetwork_log("Found node to remove\n");
-                DBG_PrintNode(psZCBNode);
-
+                user_ZBNetwork_log("Found node to remove");
+                //DBG_PrintNode(psZCBNode);
+                //ePDM_DelOneNode(psZCBNode);		//remove from flash
                 psZCBCurrentNode->psNext = psZCBCurrentNode->psNext->psNext;
                 eStatus = E_ZCB_OK;
                 iNodeFreeable = 1;
@@ -290,12 +358,12 @@ teZcbStatus eZCB_RemoveNode(tsZCB_Node *psZCBNode)
         int i, j;
         for (i = 0; i < psZCBNode->u32NumEndpoints; i++)
         {
-            user_ZBNetwork_log("Free endpoint %d\n", psZCBNode->pasEndpoints[i].u8Endpoint);
+            user_ZBNetwork_log("Free endpoint %d", psZCBNode->pasEndpoints[i].u8Endpoint);
             if (psZCBNode->pasEndpoints[i].pasClusters)
             {
                 for (j = 0; j < psZCBNode->pasEndpoints[i].u32NumClusters; j++)
                 {
-                    user_ZBNetwork_log("Free cluster 0x%04X\n", psZCBNode->pasEndpoints[i].pasClusters[j].u16ClusterID);
+                    user_ZBNetwork_log("Free cluster 0x%04X", psZCBNode->pasEndpoints[i].pasClusters[j].u16ClusterID);
                     free(psZCBNode->pasEndpoints[i].pasClusters[j].pau16Attributes);
                     free(psZCBNode->pasEndpoints[i].pasClusters[j].pau8Commands);
                 }
@@ -393,12 +461,12 @@ tsZCB_Node *psZCB_FindNodeShortAddress(uint16_t u16ShortAddress)
         {
             int iLockAttempts = 0;
 
-            user_ZBNetwork_log("Short address 0x%04X found in network", u16ShortAddress);
-            DBG_PrintNode(psZCBNode);
+            //user_ZBNetwork_log("Short address 0x%04X found in network", u16ShortAddress);
+            //DBG_PrintNode(psZCBNode);
 
             while (++iLockAttempts < 5)
             {
-                if (mico_rtos_lock_mutex(&psZCBNode->sLock) == kNoErr)
+                if (mico_rtos_lock_mutex(&psZCBNode->sLock) == kNoErr)	//get The Lock
                 {
                     break;
                 }
@@ -420,7 +488,6 @@ tsZCB_Node *psZCB_FindNodeShortAddress(uint16_t u16ShortAddress)
         }
         psZCBNode = psZCBNode->psNext;
     }
-
     mico_rtos_unlock_mutex(&sZCB_Network.sLock);
     return psZCBNode;
 }
@@ -729,6 +796,39 @@ tsZCB_NodeEndpoint *psZCB_NodeFindEndpoint(tsZCB_Node *psZCBNode, uint16_t u16Cl
 
 
 /****************************************************************************
+* Function	: psZCB_NodeFindEndpoint
+* Description	: Node Find Endpoint
+* Input Para	:
+* Output Para	:
+* Return Value:
+****************************************************************************/
+tsZCB_NodeEndpoint *psZCB_NodeFindEndpointID(tsZCB_Node *psZCBNode, uint8_t u8EndpointID)
+{
+    int i;
+    tsZCB_NodeEndpoint *psEndpoint = NULL;
+
+    user_ZBNetwork_log("Node 0x%04X: Find endpoint 0x%04X", psZCBNode->u16ShortAddress, u8EndpointID);
+
+    for (i = 0; i < psZCBNode->u32NumEndpoints; i++)
+    {
+        psEndpoint = &psZCBNode->pasEndpoints[i];
+
+        if(psEndpoint->u8Endpoint == u8EndpointID)
+        {
+			return psEndpoint;
+        }
+        else
+        {
+			continue;
+        }
+    }
+    user_ZBNetwork_log("Endpoint 0x%04X not found on node 0x%04X", u8EndpointID, psZCBNode->u16ShortAddress);
+    return NULL;
+}
+
+
+
+/****************************************************************************
 * Function	: eZCB_NodeClearGroups
 * Description	: Node Clear Groups
 * Input Para	:
@@ -795,7 +895,7 @@ teZcbStatus eZCB_NodeAddGroup(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress)
 
 /****************************************************************************
 * Function	: vZCB_NodeUpdateComms
-* Description	: Node Update Comms
+* Description	: Node Update Comms	节点更新命令??
 * Input Para	:
 * Output Para	:
 * Return Value:
@@ -806,34 +906,6 @@ void vZCB_NodeUpdateComms(tsZCB_Node *psZCBNode, teZcbStatus eStatus)
     {
         return;
     }
-
-    if (eStatus == E_ZCB_OK)
-    {
-        //gettimeofday(&psZCBNode->sComms.sLastSuccessful, NULL);
-        psZCBNode->sComms.u16SequentialFailures = 0;
-    }
-    else if (eStatus == E_ZCB_COMMS_FAILED)
-    {
-        psZCBNode->sComms.u16SequentialFailures++;
-    }
-    else
-    {
-
-    }
-#if DBG_ZBNETWORK
-    {
-        time_t nowtime;
-        struct tm *nowtm;
-        char tmbuf[64], buf[64];
-
-        nowtime = psZCBNode->sComms.sLastSuccessful.tv_sec;
-        nowtm = localtime(&nowtime);
-        strftime(tmbuf, sizeof tmbuf, "%Y-%m-%d %H:%M:%S", nowtm);
-        snprintf(buf, sizeof buf, "%s.%06d", tmbuf, (int)psZCBNode->sComms.sLastSuccessful.tv_usec);
-        user_ZBNetwork_log("Node 0x%04X: %d sequential comms failures. Last successful comms at %s\n",
-                           psZCBNode->u16ShortAddress, psZCBNode->sComms.u16SequentialFailures, buf);
-    }
-#endif /* DBG_ZBNETWORK */
 }
 
 

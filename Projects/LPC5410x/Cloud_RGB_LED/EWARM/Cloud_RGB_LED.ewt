@@ -2150,6 +2150,12 @@
         <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\user_uart.h</name>
       </file>
       <file>
+        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeAttributeReport.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeAttributeReport.h</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeConstant.h</name>
       </file>
       <file>
@@ -2175,6 +2181,12 @@
       </file>
       <file>
         <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeSerialLink.h</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeZLL.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeZLL.h</name>
       </file>
     </group>
   </group>

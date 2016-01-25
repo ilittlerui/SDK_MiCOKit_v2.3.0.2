@@ -202,5 +202,3 @@ OSStatus apds9930_sensor_deinit(void)
 exit:
   return err;
 }
-
-

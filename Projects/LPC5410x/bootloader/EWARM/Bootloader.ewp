@@ -2094,6 +2094,9 @@
       <name>Drivers</name>
       <group>
         <name>MiCOKit-EXT</name>
+        <excluded>
+          <configuration>MiCOKit-LPC5410x</configuration>
+        </excluded>
         <group>
           <name>sensors</name>
           <group>

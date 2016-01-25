@@ -136,10 +136,11 @@ OSStatus platform_adc_init( const platform_adc_t* adc, uint32_t sample_cycle )
     Chip_ADC_SetClockRate( adc->port , adc->adc_peripheral_clock );
 
     /* Calibrate the ADC */
-    if (ADC_Calibrate_test( adc->port , Chip_Clock_GetSystemClockRate()) != LPC_OK) {
-          printf("ERROR: Calibrating ADC0_%d\r\n",adc->channel);
-          err = kInProgressErr;
-          goto exit;
+    if (ADC_Calibrate_test( adc->port , Chip_Clock_GetSystemClockRate()) != LPC_OK)
+    {
+        printf("ERROR: Calibrating ADC0_%d\r\n",adc->channel);
+        err = kInProgressErr;
+        goto exit;
     }
     //printf("ADC0_%d Initialized and Calibrated successfully!\r\n",adc->channel);
 
@@ -161,10 +162,11 @@ OSStatus platform_adc_take_sample( const platform_adc_t* adc, uint16_t* output )
     adc->port->SEQ_CTRL[adc->seqIndex] = valSeq[adc->seqIndex];
 
     /* Wait required number of samples */
-    if (ADC_Handler_SeqPoll_test( adc, adc->seqIndex , output ) != LPC_OK) {
-      printf("ERROR: required number of samples \r\n");
-      err = kInProgressErr;
-      goto exit;
+    if (ADC_Handler_SeqPoll_test( adc, adc->seqIndex , output ) != LPC_OK)
+    {
+        printf("ERROR: required number of samples \r\n");
+        err = kInProgressErr;
+        goto exit;
     }
 
 exit:
@@ -184,148 +186,165 @@ OSStatus platform_adc_take_sample_stream( const platform_adc_t* adc, void* buffe
 OSStatus platform_adc_deinit( const platform_adc_t* adc )
 {
     UNUSED_PARAMETER(adc);
-  OSStatus err = kNoErr;
+    OSStatus err = kNoErr;
 
-  platform_mcu_powersave_disable();
+    platform_mcu_powersave_disable();
 
-  require_action_quiet( adc != NULL, exit, err = kParamErr);
+    require_action_quiet( adc != NULL, exit, err = kParamErr);
 
-  Chip_ADC_DeInit( adc->port );
+    Chip_ADC_DeInit( adc->port );
 
 exit:
-  platform_mcu_powersave_enable();
-  return err;
+    platform_mcu_powersave_enable();
+    return err;
 }
 /* EXPORTED API: Calibrate the ADC */
 static ErrorCode_t ADC_Calibrate_test(LPC_ADC_T *pREGS, uint32_t sysclk_freq)
 {
-	volatile uint32_t i;
+    volatile uint32_t i;
 
-	pREGS->STARTUP = ADC_STARTUP_ENABLE;
-	for ( i = 0; i < 0x10; i++ ) {}
-	if ( !(pREGS->STARTUP & ADC_STARTUP_ENABLE) ) {
-		return ERR_ADC_NO_POWER;
-	}
+    pREGS->STARTUP = ADC_STARTUP_ENABLE;
+    for ( i = 0; i < 0x10; i++ ) {}
+    if ( !(pREGS->STARTUP & ADC_STARTUP_ENABLE) )
+    {
+        return ERR_ADC_NO_POWER;
+    }
 
-	/* If not in by-pass mode do the calibration */
-	if ( (pREGS->CALIBR & ADC_CALREQD) && !(pREGS->CTRL & ADC_CR_BYPASS) ) {
-		uint32_t ctrl = pREGS->CTRL & (CTRL_MASK | 0xFF);
-		uint32_t tmp = ctrl;
+    /* If not in by-pass mode do the calibration */
+    if ( (pREGS->CALIBR & ADC_CALREQD) && !(pREGS->CTRL & ADC_CR_BYPASS) )
+    {
+        uint32_t ctrl = pREGS->CTRL & (CTRL_MASK | 0xFF);
+        uint32_t tmp = ctrl;
 
-		/* Set ADC to SYNC mode */
-		tmp &= ~ADC_CR_ASYNC_MODE;
+        /* Set ADC to SYNC mode */
+        tmp &= ~ADC_CR_ASYNC_MODE;
 
-		/* To be safe run calibration at 1MHz UM permits upto 30MHz */
-		if (sysclk_freq > 1000000UL) {
-			pREGS->CTRL = tmp | (((sysclk_freq / 1000000UL) - 1) & 0xFF);
-		}
+        /* To be safe run calibration at 1MHz UM permits upto 30MHz */
+        if (sysclk_freq > 1000000UL)
+        {
+            pREGS->CTRL = tmp | (((sysclk_freq / 1000000UL) - 1) & 0xFF);
+        }
 
-		/* Calibration is needed, do it now. */
-		pREGS->CALIBR = ADC_CALIB;
-		i = 0xF0000;
-		while ( (pREGS->CALIBR & ADC_CALIB) && --i ) {}
-		pREGS->CTRL = ctrl;
-		return i ? LPC_OK : ERR_TIME_OUT;
-	}
+        /* Calibration is needed, do it now. */
+        pREGS->CALIBR = ADC_CALIB;
+        i = 0xF0000;
+        while ( (pREGS->CALIBR & ADC_CALIB) && --i ) {}
+        pREGS->CTRL = ctrl;
+        return i ? LPC_OK : ERR_TIME_OUT;
+    }
 
-	/* A dummy conversion cycle will be performed. */
-	pREGS->STARTUP = (pREGS->STARTUP | ADC_STARTUP_INIT) & 0x03;
-	i = 0x7FFFF;
-	while ( (pREGS->STARTUP & ADC_STARTUP_INIT) && --i ) {}
-	return i ? LPC_OK : ERR_TIME_OUT;
+    /* A dummy conversion cycle will be performed. */
+    pREGS->STARTUP = (pREGS->STARTUP | ADC_STARTUP_INIT) & 0x03;
+    i = 0x7FFFF;
+    while ( (pREGS->STARTUP & ADC_STARTUP_INIT) && --i ) {}
+    return i ? LPC_OK : ERR_TIME_OUT;
 }
 /* PRIVATE: ADC sequence handler polling mode */
 static ErrorCode_t ADC_Handler_SeqPoll_test( const platform_adc_t* adc, ADC_SEQ_IDX_T seqIndex, uint16_t* output)
 {
-	ErrorCode_t ret = LPC_OK;
-	/* Poll as long as the sequence is enabled */
-	while (adc->port->SEQ_CTRL[seqIndex] & ADC_SEQ_CTRL_SEQ_ENA) {
+    ErrorCode_t ret = LPC_OK;
+    /* Poll as long as the sequence is enabled */
+    while (adc->port->SEQ_CTRL[seqIndex] & ADC_SEQ_CTRL_SEQ_ENA)
+    {
 
-		if (!(adc->port->FLAGS & ADC_FLAGS_SEQN_INT_MASK(seqIndex))) {
-			continue;
-		}
+        if (!(adc->port->FLAGS & ADC_FLAGS_SEQN_INT_MASK(seqIndex)))
+        {
+            continue;
+        }
 
-		ret = ADC_Handler_Seq_test(adc, seqIndex, output);
-		if (ret != LPC_OK) {
-			break;
-		}
-	}
-	return ret;
+        ret = ADC_Handler_Seq_test(adc, seqIndex, output);
+        if (ret != LPC_OK)
+        {
+            break;
+        }
+    }
+    return ret;
 }
 
 /* PRIVATE: ADC Sequence event handler function */
 static ErrorCode_t ADC_Handler_Seq_test( const platform_adc_t* adc, ADC_SEQ_IDX_T seqIndex, uint16_t* output)
 {
-	uint32_t flag = adc->port->FLAGS;
-	uint32_t tmp;
-        *output = 0xffff;
+    uint32_t flag = adc->port->FLAGS;
+    uint32_t tmp;
+    *output = 0xffff;
 
-	/* Check if overrun is enabled and got an overrun */
-	tmp = flag & ADC_FLAGS_SEQN_OVRRUN_MASK(seqIndex);
+    /* Check if overrun is enabled and got an overrun */
+    tmp = flag & ADC_FLAGS_SEQN_OVRRUN_MASK(seqIndex);
 
-	if (!(flag & ADC_FLAGS_SEQN_INT_MASK(seqIndex))) {
-		return ERR_ADC_INVALID_SEQUENCE;
-	}
+    if (!(flag & ADC_FLAGS_SEQN_INT_MASK(seqIndex)))
+    {
+        return ERR_ADC_INVALID_SEQUENCE;
+    }
 
-	if (ADC_ReadData_test(adc, seqIndex, output) != LPC_OK) {
-		return ERR_FAILED;
-	}
+    if (ADC_ReadData_test(adc, seqIndex, output) != LPC_OK)
+    {
+        return ERR_FAILED;
+    }
 
-	/* Handle the overflow */
-	if (tmp) {
-		printf("ADC Handle the overflow!\r\n");
-	}
+    /* Handle the overflow */
+    if (tmp)
+    {
+        printf("ADC Handle the overflow!\r\n");
+    }
 
-	/* Clear the interrupt if it is for EOS and not EOC */
-	if (valSeq[seqIndex] & ADC_SEQ_CTRL_MODE_EOS) {
-		adc->port->FLAGS = ADC_FLAGS_SEQN_INT_MASK(seqIndex);
-	}
+    /* Clear the interrupt if it is for EOS and not EOC */
+    if (valSeq[seqIndex] & ADC_SEQ_CTRL_MODE_EOS)
+    {
+        adc->port->FLAGS = ADC_FLAGS_SEQN_INT_MASK(seqIndex);
+    }
 
-        if ( *output != 0xffff ){
+    if ( *output != 0xffff )
+    {
 
-          /* Disable interrupts */
-          adc->port->INTEN &= ~(1 << seqIndex);
+        /* Disable interrupts */
+        adc->port->INTEN &= ~(1 << seqIndex);
 
-          /* Stop and disable the sequence */
-          adc->port->SEQ_CTRL[seqIndex] = valSeq[seqIndex] &
-                                              ~(ADC_SEQ_CTRL_SEQ_ENA | ADC_SEQ_CTRL_BURST | ADC_SEQ_CTRL_START);
-          return LPC_OK;
-        }
+        /* Stop and disable the sequence */
+        adc->port->SEQ_CTRL[seqIndex] = valSeq[seqIndex] &
+                                        ~(ADC_SEQ_CTRL_SEQ_ENA | ADC_SEQ_CTRL_BURST | ADC_SEQ_CTRL_START);
+        return LPC_OK;
+    }
 
-	/* If we are not in burst mode we must trigger next sample */
-	if (!((valSeq[seqIndex] >> 12) & 0x1F) && !(valSeq[seqIndex] & ADC_SEQ_CTRL_BURST)) {
-		adc->port->SEQ_CTRL[seqIndex] = valSeq[seqIndex];
-}
+    /* If we are not in burst mode we must trigger next sample */
+    if (!((valSeq[seqIndex] >> 12) & 0x1F) && !(valSeq[seqIndex] & ADC_SEQ_CTRL_BURST))
+    {
+        adc->port->SEQ_CTRL[seqIndex] = valSeq[seqIndex];
+    }
 
-	return LPC_OK;
+    return LPC_OK;
 }
 /* PRIVATE: Reads data from the GDAT or DAT register based on mode of operation */
 static ErrorCode_t ADC_ReadData_test(const platform_adc_t* adc, ADC_SEQ_IDX_T seqIndex, uint16_t* output)
 {
-	int i;
-	/* Check if this is End-of-Seq or End-of-SingleConversion */
-	if (!(valSeq[seqIndex] & ADC_SEQ_CTRL_MODE_EOS)) {
-		return ADC_GetData_test(adc->port->SEQ_GDAT[seqIndex], output);
-	}
-	/* Read channels having conversion data */
-	for (i = 0; i < sizeof(adc->port->DAT) / sizeof(adc->port->DAT[0]); i++) {
-		if (valSeq[seqIndex] & ADC_SEQ_CTRL_CHANSEL(i)) {
-			if (ADC_GetData_test(adc->port->DAT[i], output) != LPC_OK) {
-				return ERR_FAILED;
-			}
-		}
-	}
-	return LPC_OK;
+    int i;
+    /* Check if this is End-of-Seq or End-of-SingleConversion */
+    if (!(valSeq[seqIndex] & ADC_SEQ_CTRL_MODE_EOS))
+    {
+        return ADC_GetData_test(adc->port->SEQ_GDAT[seqIndex], output);
+    }
+    /* Read channels having conversion data */
+    for (i = 0; i < sizeof(adc->port->DAT) / sizeof(adc->port->DAT[0]); i++)
+    {
+        if (valSeq[seqIndex] & ADC_SEQ_CTRL_CHANSEL(i))
+        {
+            if (ADC_GetData_test(adc->port->DAT[i], output) != LPC_OK)
+            {
+                return ERR_FAILED;
+            }
+        }
+    }
+    return LPC_OK;
 }
 /* PRIVATE: Extract, format data and store into user buffer  */
 static ErrorCode_t ADC_GetData_test(uint32_t data, uint16_t* output)
 {
-	/* If data is not vaild something is wrong! */
-	if (!(data & ADC_SEQ_GDAT_DATAVALID)) {
-		return ERR_FAILED;
-	}
+    /* If data is not vaild something is wrong! */
+    if (!(data & ADC_SEQ_GDAT_DATAVALID))
+    {
+        return ERR_FAILED;
+    }
 
-        /* Read ADC conversion result */
-        *output = (uint16_t) ADC_DR_RESULT(data);
-	return LPC_OK;
+    /* Read ADC conversion result */
+    *output = (uint16_t) ADC_DR_RESULT(data);
+    return LPC_OK;
 }

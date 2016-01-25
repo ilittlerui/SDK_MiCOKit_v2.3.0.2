@@ -25,7 +25,7 @@ if not "%1" == "" goto debugFile
 
 @echo on 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2_2\common\bin\cspybat" -f "E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Projects\LPC5410x\MiCOKit_Enjoy\EWARM\settings\MiCOKit_Enjoy.MiCOKit-LPC5410x.general.xcl" --backend -f "E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Projects\LPC5410x\MiCOKit_Enjoy\EWARM\settings\MiCOKit_Enjoy.MiCOKit-LPC5410x.driver.xcl" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2\common\bin\cspybat" -f "E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Projects\LPC5410x\MiCOKit_Enjoy\EWARM\settings\MiCOKit_Enjoy.MiCOKit-LPC5410x.general.xcl" --backend -f "E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Projects\LPC5410x\MiCOKit_Enjoy\EWARM\settings\MiCOKit_Enjoy.MiCOKit-LPC5410x.driver.xcl" 
 
 @echo off 
 goto end 
@@ -34,7 +34,7 @@ goto end
 
 @echo on 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2_2\common\bin\cspybat" -f "E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Projects\LPC5410x\MiCOKit_Enjoy\EWARM\settings\MiCOKit_Enjoy.MiCOKit-LPC5410x.general.xcl" "--debug_file=%1" --backend -f "E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Projects\LPC5410x\MiCOKit_Enjoy\EWARM\settings\MiCOKit_Enjoy.MiCOKit-LPC5410x.driver.xcl" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2\common\bin\cspybat" -f "E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Projects\LPC5410x\MiCOKit_Enjoy\EWARM\settings\MiCOKit_Enjoy.MiCOKit-LPC5410x.general.xcl" "--debug_file=%1" --backend -f "E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Projects\LPC5410x\MiCOKit_Enjoy\EWARM\settings\MiCOKit_Enjoy.MiCOKit-LPC5410x.driver.xcl" 
 
 @echo off 
 :end

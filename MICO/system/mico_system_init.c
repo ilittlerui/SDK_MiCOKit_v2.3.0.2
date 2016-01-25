@@ -111,7 +111,7 @@ OSStatus mico_system_init( mico_Context_t* in_context )
   /* user test mode to test MiCOKit-EXT board */
   if(MicoExtShouldEnterTestMode()){
     system_log("Enter ext-board test mode by key2.");
-    micokit_ext_mfg_test(in_context);
+    //micokit_ext_mfg_test(in_context);
   }
 #endif
 

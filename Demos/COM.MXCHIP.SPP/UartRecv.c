@@ -1,6 +1,6 @@
 /**
   ******************************************************************************
-  * @file    UartRecv.c 
+  * @file    UartRecv.c
   * @author  William Xu
   * @version V1.0.0
   * @date    05-May-2014
@@ -17,7 +17,7 @@
   *
   * <h2><center>&copy; COPYRIGHT 2014 MXCHIP Inc.</center></h2>
   ******************************************************************************
-  */ 
+  */
 
 #include "MICO.h"
 #include "SppProtocol.h"
@@ -29,24 +29,25 @@ static size_t _uart_get_one_packet(uint8_t* buf, int maxlen);
 
 void uartRecv_thread(void *inContext)
 {
-  uart_recv_log_trace();
-  app_context_t *Context = inContext;
-  int recvlen;
-  uint8_t *inDataBuffer;
-  
-  inDataBuffer = malloc(UART_ONE_PACKAGE_LENGTH);
-  require(inDataBuffer, exit);
-  
-  while(1) {
-    recvlen = _uart_get_one_packet(inDataBuffer, UART_ONE_PACKAGE_LENGTH);
-    if (recvlen <= 0)
-      continue; 
-    sppUartCommandProcess(inDataBuffer, recvlen, Context);
-  }
-  
+    uart_recv_log_trace();
+    app_context_t *Context = inContext;
+    int recvlen;
+    uint8_t *inDataBuffer;
+
+    inDataBuffer = malloc(UART_ONE_PACKAGE_LENGTH);
+    require(inDataBuffer, exit);
+
+    while(1)
+    {
+        recvlen = _uart_get_one_packet(inDataBuffer, UART_ONE_PACKAGE_LENGTH);
+        if (recvlen <= 0)
+            continue;
+        sppUartCommandProcess(inDataBuffer, recvlen, Context);
+    }
+
 exit:
-  if(inDataBuffer) free(inDataBuffer);
-  mico_rtos_delete_thread(NULL);
+    if(inDataBuffer) free(inDataBuffer);
+    mico_rtos_delete_thread(NULL);
 }
 
 /* Packet format: BB 00 CMD(2B) Status(2B) datalen(2B) data(x) checksum(2B)
@@ -54,23 +55,27 @@ exit:
 */
 size_t _uart_get_one_packet(uint8_t* inBuf, int inBufLen)
 {
-  uart_recv_log_trace();
+    uart_recv_log_trace();
 
-  int datalen;
-  
-  while(1) {
-    if( MicoUartRecv( UART_FOR_APP, inBuf, inBufLen, UART_RECV_TIMEOUT) == kNoErr){
-      return inBufLen;
+    int datalen;
+
+    while(1)
+    {
+        if( MicoUartRecv( UART_FOR_APP, inBuf, inBufLen, UART_RECV_TIMEOUT) == kNoErr)
+        {
+            return inBufLen;
+        }
+        else
+        {
+            datalen = MicoUartGetLengthInBuffer( UART_FOR_APP );
+            if(datalen)
+            {
+                MicoUartRecv(UART_FOR_APP, inBuf, datalen, UART_RECV_TIMEOUT);
+                return datalen;
+            }
+        }
     }
-   else{
-     datalen = MicoUartGetLengthInBuffer( UART_FOR_APP );
-     if(datalen){
-       MicoUartRecv(UART_FOR_APP, inBuf, datalen, UART_RECV_TIMEOUT);
-       return datalen;
-     }
-   }
-  }
-  
+
 }
 
 

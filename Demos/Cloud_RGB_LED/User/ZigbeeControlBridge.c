@@ -27,13 +27,14 @@
 #include "ZigBeeConstant.h"
 #include "ZigBeeSerialLink.h"
 #include "ZigBeePDM.h"
+#include "ZigBeeAttributeReport.h"
 /****************************************************************************/
 /***        Macro Definitions                                             ***/
 /****************************************************************************/
 
 #define DBG_ZCB 0
 
-
+extern unsigned char gSetDeviceFlag;
 #define user_controlbridge_log(M, ...) custom_log("ControlBridge", M, ##__VA_ARGS__)
 #define user_controlbridge_log_trace() custom_log_trace("ControlBridge")
 
@@ -87,25 +88,17 @@ uint32_t u32ZCB_CurrentWaitSeq = 0;
 ****************************************************************************/
 teZcbStatus eZCB_Init(app_context_t * const app_context)
 {
-    if (eSL_Init() != E_SL_OK)
-    {
-        return E_ZCB_COMMS_FAILED;
-    }
-
-    /* Create the event queue for the control bridge. The queue will not block if space is not available */
-    //if (eUtils_QueueCreate(&sZcbEventQueue, 100, UTILS_QUEUE_NONBLOCK_INPUT) != E_UTILS_OK)
-    //{
-    //    user_controlbridge_log("Error initialising event queue");
-    //    return E_ZCB_ERROR;
-    //}
     //初始化 ZigBee Network
     memset(&sZCB_Network, 0, sizeof(sZCB_Network));
     mico_rtos_init_mutex(&sZCB_Network.sLock);
     mico_rtos_init_mutex(&sZCB_Network.sNodes.sLock);
 
+    eZCB_InitAttributeReport();
+
     // Get the PDM going so that the node can get the information it needs.
-    //ePDM_Init((mico_Context_t*)app_context->mico_context);
-    user_controlbridge_log("PDM init");
+    ePDM_Init((mico_Context_t*)app_context->mico_context);
+    //user_controlbridge_log("PDM init");
+
 
     return E_ZCB_OK;
 }
@@ -122,12 +115,6 @@ teZcbStatus eZCB_Init(app_context_t * const app_context)
 teZcbStatus eZCB_Finish(void)
 {
     ePDM_Destory();
-    eSL_Destroy();
-
-    //if (eUtils_QueueDestroy(&sZcbEventQueue) != E_UTILS_OK)
-    //{
-    //   daemon_log(LOG_ERR, "Error destroying event queue");
-    //}
 
     while (sZCB_Network.sNodes.psNext)
     {
@@ -135,6 +122,14 @@ teZcbStatus eZCB_Finish(void)
     }
     eZCB_RemoveNode(&sZCB_Network.sNodes);
     mico_rtos_deinit_mutex(&sZCB_Network.sLock);
+
+
+    if (eSL_SendMessage(E_SL_MSG_ERASE_PERSISTENT_DATA, 0, NULL, NULL) != E_SL_OK)//Send Message
+    {
+        user_controlbridge_log("err");
+    }
+
+
 
     return E_ZCB_OK;
 }
@@ -160,10 +155,8 @@ teZcbStatus eZCB_EstablishComms(void)
         {
             u32ZCB_SoftwareVersion = ntohl(*u32Version);
             user_controlbridge_log("Connected to control bridge version 0x%08x", u32ZCB_SoftwareVersion);
-            if(u32Version != NULL)
-                free(u32Version);
 
-            user_controlbridge_log("Reset control bridge\n");
+            user_controlbridge_log("Reset control bridge");
             if (eSL_SendMessage(E_SL_MSG_RESET, 0, NULL, NULL) != E_SL_OK)
             {
                 return E_ZCB_COMMS_FAILED;
@@ -203,8 +196,8 @@ teZcbStatus eZCB_FactoryNew(void)
             if (eStatus == E_SL_OK)
             {
                 eStatus = psStatus->eStatus;
-                if(psStatus != NULL)
-                    free(psStatus);
+                //if(psStatus != NULL)
+                //    free(psStatus);
             }
             else
 
@@ -218,7 +211,7 @@ teZcbStatus eZCB_FactoryNew(void)
         }
     }
     /* Wait for it to erase itself */
-    mico_thread_sleep(1);
+    mico_thread_msleep(800);
 
     user_controlbridge_log("Reset control bridge");
     if (eSL_SendMessage(E_SL_MSG_RESET, 0, NULL, NULL) != E_SL_OK)
@@ -240,7 +233,6 @@ teZcbStatus eZCB_FactoryNew(void)
 ****************************************************************************/
 teZcbStatus eZCB_SetExtendedPANID(uint64_t u64PanID)
 {
-    //u64PanID = htobe64(u64PanID);
     u64PanID = hton64(u64PanID);
     if (eSL_SendMessage(E_SL_MSG_SET_EXT_PANID, sizeof(uint64_t), &u64PanID, NULL) != E_SL_OK)
     {
@@ -279,7 +271,7 @@ teZcbStatus eZCB_SetChannelMask(uint32_t u32ChannelMask)
 ****************************************************************************/
 teZcbStatus eZCB_SetInitialSecurity(uint8_t u8State, uint8_t u8Sequence, uint8_t u8Type, uint8_t *pu8Key)
 {
-    uint8_t au8Buffer[256];
+    uint8_t au8Buffer[128];
     uint32_t u32Position = 0;
 
     au8Buffer[u32Position] = u8State;
@@ -293,13 +285,13 @@ teZcbStatus eZCB_SetInitialSecurity(uint8_t u8State, uint8_t u8Sequence, uint8_t
 
     switch (u8Type)
     {
-    case (1):
-        memcpy(&au8Buffer[u32Position], pu8Key, 16);
-        u32Position += 16;
-        break;
-    default:
-        user_controlbridge_log("Uknown key type %d\n", u8Type);
-        return E_ZCB_ERROR;
+        case (1):
+            memcpy(&au8Buffer[u32Position], pu8Key, 16);
+            u32Position += 16;
+            break;
+        default:
+            user_controlbridge_log("Uknown key type %d", u8Type);
+            return E_ZCB_ERROR;
     }
 
     if (eSL_SendMessage(E_SL_MSG_SET_SECURITY, u32Position, au8Buffer, NULL) != E_SL_OK)
@@ -322,14 +314,11 @@ teZcbStatus eZCB_SetDeviceType(teModuleMode eModuleMode)
 {
     uint8_t u8ModuleMode = eModuleMode;
 
-    user_controlbridge_log("Writing Module: Set Device Type: %d", eModuleMode);
-
-
+    user_controlbridge_log("Set Device Type: %d", eModuleMode);
     if (eSL_SendMessage(E_SL_MSG_SET_DEVICETYPE, sizeof(uint8_t), &u8ModuleMode, NULL) != E_SL_OK)
     {
         return E_ZCB_COMMS_FAILED;
     }
-
     return E_ZCB_OK;
 }
 
@@ -422,7 +411,7 @@ teZcbStatus eZCB_GetPermitJoining(uint8_t *pu8Status)
 
     user_controlbridge_log("Permit joining Status: %d", psGetPermitJoiningResponse->u8Status);
 
-    free(psGetPermitJoiningResponse);
+    //free(psGetPermitJoiningResponse);
     eStatus = E_ZCB_OK;
 done:
     return eStatus;
@@ -440,10 +429,10 @@ teZcbStatus eZCB_SetWhitelistEnabled(uint8_t bEnable)
 {
     uint8_t u8Enable = bEnable ? 1 : 0;
 
-    user_controlbridge_log("%s whitelisting\n", bEnable ? "Enable" : "Disable");
+    user_controlbridge_log("%s whitelisting", bEnable ? "Enable" : "Disable");
     if (eSL_SendMessage(E_SL_MSG_NETWORK_WHITELIST_ENABLE, 1, &u8Enable, NULL) != E_SL_OK)
     {
-        user_controlbridge_log("Failed\n");
+        user_controlbridge_log("Failed");
         return E_ZCB_COMMS_FAILED;
     }
     return E_ZCB_OK;
@@ -486,7 +475,6 @@ teZcbStatus eZCB_AuthenticateDevice(uint64_t u64IEEEAddress, uint8_t *pau8LinkKe
     uint8_t u8SequenceNo;
     teZcbStatus eStatus = E_ZCB_COMMS_FAILED;
 
-    //sAuthenticateRequest.u64IEEEAddress = htobe64(u64IEEEAddress);
     sAuthenticateRequest.u64IEEEAddress = hton64(u64IEEEAddress);
     memcpy(sAuthenticateRequest.au8LinkKey, pau8LinkKey, 16);
 
@@ -502,29 +490,30 @@ teZcbStatus eZCB_AuthenticateDevice(uint64_t u64IEEEAddress, uint8_t *pau8LinkKe
         }
         else
         {
-            user_controlbridge_log("Got authentication data for device 0x%016llX\n", (unsigned long long int)u64IEEEAddress);
+            user_controlbridge_log("Got authentication data for device 0x%016llX", (unsigned long long int)u64IEEEAddress);
 
             psAuthenticateResponse->u64TrustCenterAddress = hton64(psAuthenticateResponse->u64TrustCenterAddress);
             psAuthenticateResponse->u16PanID = ntohs(psAuthenticateResponse->u16PanID);
             psAuthenticateResponse->u64PanID = ntoh64(psAuthenticateResponse->u64PanID);
 
-            user_controlbridge_log("Trust center address: 0x%016llX\n", (unsigned long long int)psAuthenticateResponse->u64TrustCenterAddress);
-            user_controlbridge_log("Key sequence number: %02d\n", psAuthenticateResponse->u8KeySequenceNumber);
-            user_controlbridge_log("Channel: %02d\n", psAuthenticateResponse->u8Channel);
-            user_controlbridge_log("Short PAN: 0x%04X\n", psAuthenticateResponse->u16PanID);
-            user_controlbridge_log("Extended PAN: 0x%016llX\n", (unsigned long long int)psAuthenticateResponse->u64PanID);
+            user_controlbridge_log("Trust center address: 0x%016llX", (unsigned long long int)psAuthenticateResponse->u64TrustCenterAddress);
+            user_controlbridge_log("Key sequence number: %02d", psAuthenticateResponse->u8KeySequenceNumber);
+            user_controlbridge_log("Channel: %02d", psAuthenticateResponse->u8Channel);
+            user_controlbridge_log("Short PAN: 0x%04X", psAuthenticateResponse->u16PanID);
+            user_controlbridge_log("Extended PAN: 0x%016llX", (unsigned long long int)psAuthenticateResponse->u64PanID);
 
             memcpy(pau8NetworkKey, psAuthenticateResponse->au8NetworkKey, 16);
             memcpy(pau8MIC, psAuthenticateResponse->au8MIC, 4);
-            memcpy(pu64TrustCenterAddress, &psAuthenticateResponse->u64TrustCenterAddress, 8);
+            //memcpy(pu64TrustCenterAddress, &psAuthenticateResponse->u64TrustCenterAddress, 8);
+            *pu64TrustCenterAddress = psAuthenticateResponse->u64TrustCenterAddress;             // void Pa039
             memcpy(pu8KeySequenceNumber, &psAuthenticateResponse->u8KeySequenceNumber, 1);
 
             eStatus = E_ZCB_OK;
         }
     }
 
-    if(psAuthenticateResponse != NULL)
-        free(psAuthenticateResponse);
+    //if(psAuthenticateResponse != NULL)
+    //    free(psAuthenticateResponse);
     return eStatus;
 }
 
@@ -539,7 +528,7 @@ teZcbStatus eZCB_AuthenticateDevice(uint64_t u64IEEEAddress, uint8_t *pau8LinkKe
 ****************************************************************************/
 teZcbStatus eZCB_ZLL_Touchlink(void)
 {
-    user_controlbridge_log("Initiate Touchlink\n");
+    user_controlbridge_log("Initiate Touchlink");
     if (eSL_SendMessage(E_SL_MSG_INITIATE_TOUCHLINK, 0, NULL, NULL) != E_SL_OK)
     {
         return E_ZCB_COMMS_FAILED;
@@ -550,12 +539,19 @@ teZcbStatus eZCB_ZLL_Touchlink(void)
 
 
 /** Initiate Match descriptor request */
+/****************************************************************************
+* Function	: eZCB_MatchDescriptorRequest
+* Description	:
+* Input Para	:
+* Output Para	:
+* Return Value:
+****************************************************************************/
 teZcbStatus eZCB_MatchDescriptorRequest(uint16_t u16TargetAddress, uint16_t u16ProfileID,
                                         uint8_t u8NumInputClusters, uint16_t *pau16InputClusters,
                                         uint8_t u8NumOutputClusters, uint16_t *pau16OutputClusters,
                                         uint8_t *pu8SequenceNo)
 {
-    uint8_t au8Buffer[256];
+    uint8_t au8Buffer[128];
     uint32_t u32Position = 0;
     int i;
 
@@ -572,17 +568,17 @@ teZcbStatus eZCB_MatchDescriptorRequest(uint16_t u16TargetAddress, uint16_t u16P
     au8Buffer[u32Position] = u8NumInputClusters;
     u32Position++;
 
-    user_controlbridge_log("  Input Cluster List:");
+    //user_controlbridge_log("  Input Cluster List:");
 
     for (i = 0; i < u8NumInputClusters; i++)
     {
         uint16_t u16ClusterID = htons(pau16InputClusters[i]);
-        user_controlbridge_log("    0x%04X", pau16InputClusters[i]);
+        //user_controlbridge_log("    0x%04X", pau16InputClusters[i]);
         memcpy(&au8Buffer[u32Position], &u16ClusterID , sizeof(uint16_t));
         u32Position += sizeof(uint16_t);
     }
 
-    user_controlbridge_log("  Output Cluster List:");
+    //user_controlbridge_log("  Output Cluster List:");
 
     au8Buffer[u32Position] = u8NumOutputClusters;
     u32Position++;
@@ -590,7 +586,7 @@ teZcbStatus eZCB_MatchDescriptorRequest(uint16_t u16TargetAddress, uint16_t u16P
     for (i = 0; i < u8NumOutputClusters; i++)
     {
         uint16_t u16ClusterID = htons(pau16OutputClusters[i] );
-        user_controlbridge_log("    0x%04X", pau16OutputClusters[i]);
+        //user_controlbridge_log("    0x%04X", pau16OutputClusters[i]);
         memcpy(&au8Buffer[u32Position], &u16ClusterID , sizeof(uint16_t));
         u32Position += sizeof(uint16_t);
     }
@@ -634,7 +630,7 @@ teZcbStatus eZCB_LeaveRequest(tsZCB_Node *psZCBNode)
     uint8_t u8SequenceNo;
     teZcbStatus eStatus = E_ZCB_COMMS_FAILED;
 
-    user_controlbridge_log("\n\n\nRequesting node 0x%04X to leave network\n", psZCBNode->u16ShortAddress);
+    user_controlbridge_log("\nRequesting node 0x%04X to leave network", psZCBNode->u16ShortAddress);
 
     sManagementLeaveRequest.u16TargetAddress    = htons(psZCBNode->u16ShortAddress);
     sManagementLeaveRequest.u64IEEEAddress      = 0; // Ignored
@@ -661,20 +657,20 @@ teZcbStatus eZCB_LeaveRequest(tsZCB_Node *psZCBNode)
         }
         else
         {
-            user_controlbridge_log("leave response sequence number received 0x%02X does not match that sent 0x%02X\n", sManagementLeaveResponse->u8SequenceNo, u8SequenceNo);
-            if(sManagementLeaveResponse != NULL)
-                free(sManagementLeaveResponse);
+            user_controlbridge_log("leave response sequence number received 0x%02X does not match that sent 0x%02X", sManagementLeaveResponse->u8SequenceNo, u8SequenceNo);
+            //if(sManagementLeaveResponse != NULL)
+            //free(sManagementLeaveResponse);
         }
     }
 
-    user_controlbridge_log("Request Node 0x%04X to leave status: %d\n", psZCBNode->u16ShortAddress, sManagementLeaveResponse->u8Status);
+    user_controlbridge_log("Request Node 0x%04X to leave status: %d", psZCBNode->u16ShortAddress, sManagementLeaveResponse->u8Status);
 
     eStatus = sManagementLeaveResponse->u8Status;
 
 done:
     vZCB_NodeUpdateComms(psZCBNode, eStatus);
-    if(sManagementLeaveResponse != NULL)
-        free(sManagementLeaveResponse);
+    //if(sManagementLeaveResponse != NULL)
+    //free(sManagementLeaveResponse);
     return eStatus;
 }
 
@@ -741,7 +737,7 @@ teZcbStatus eZCB_NeighbourTableRequest(tsZCB_Node *psZCBNode)
     sManagementLQIRequest.u16TargetAddress = htons(u16ShortAddress);
     sManagementLQIRequest.u8StartIndex      = psZCBNode->u8LastNeighbourTableIndex;
 
-    user_controlbridge_log("Send management LQI request to 0x%04X for entries starting at %d\n", u16ShortAddress, sManagementLQIRequest.u8StartIndex);
+    user_controlbridge_log("Send management LQI request to 0x%04X for entries starting at %d", u16ShortAddress, sManagementLQIRequest.u8StartIndex);
 
     if (eSL_SendMessage(E_SL_MSG_MANAGEMENT_LQI_REQUEST, sizeof(struct _ManagementLQIRequest), &sManagementLQIRequest, &u8SequenceNo) != E_SL_OK)
     {
@@ -763,13 +759,13 @@ teZcbStatus eZCB_NeighbourTableRequest(tsZCB_Node *psZCBNode)
         }
         else
         {
-            user_controlbridge_log("IEEE Address sequence number received 0x%02X does not match that sent 0x%02X\n", psManagementLQIResponse->u8SequenceNo, u8SequenceNo);
-            if(psManagementLQIResponse != NULL)
-                free(psManagementLQIResponse);
+            user_controlbridge_log("IEEE Address sequence number received 0x%02X does not match that sent 0x%02X", psManagementLQIResponse->u8SequenceNo, u8SequenceNo);
+            //if(psManagementLQIResponse != NULL)
+            //free(psManagementLQIResponse);
         }
     }
 
-    user_controlbridge_log("Received management LQI response. Table size: %d, Entry count: %d, start index: %d\n",
+    user_controlbridge_log("Received management LQI response. Table size: %d, Entry count: %d, start index: %d",
                            psManagementLQIResponse->u8NeighbourTableSize,
                            psManagementLQIResponse->u8TableEntries,
                            psManagementLQIResponse->u8StartIndex);
@@ -791,18 +787,18 @@ teZcbStatus eZCB_NeighbourTableRequest(tsZCB_Node *psZCBNode)
             continue;
         }
 
-        user_controlbridge_log("  Entry %02d: Short Address 0x%04X, PAN ID: 0x%016llX, IEEE Address: 0x%016llX\n", i,
+        user_controlbridge_log("  Entry %02d: Short Address 0x%04X, PAN ID: 0x%016llX, IEEE Address: 0x%016llX", i,
                                psManagementLQIResponse->asNeighbours[i].u16ShortAddress,
                                (unsigned long long int)psManagementLQIResponse->asNeighbours[i].u64PanID,
                                (unsigned long long int)psManagementLQIResponse->asNeighbours[i].u64IEEEAddress);
 
-        user_controlbridge_log("    Type: %d, Permit Joining: %d, Relationship: %d, RxOnWhenIdle: %d\n",
+        user_controlbridge_log("    Type: %d, Permit Joining: %d, Relationship: %d, RxOnWhenIdle: %d",
                                psManagementLQIResponse->asNeighbours[i].sBitmap.uDeviceType,
                                psManagementLQIResponse->asNeighbours[i].sBitmap.uPermitJoining,
                                psManagementLQIResponse->asNeighbours[i].sBitmap.uRelationship,
                                psManagementLQIResponse->asNeighbours[i].sBitmap.uMacCapability);
 
-        user_controlbridge_log("    Depth: %d, LQI: %d\n",
+        user_controlbridge_log("    Depth: %d, LQI: %d",
                                psManagementLQIResponse->asNeighbours[i].u8Depth,
                                psManagementLQIResponse->asNeighbours[i].u8LQI);
 
@@ -814,13 +810,13 @@ teZcbStatus eZCB_NeighbourTableRequest(tsZCB_Node *psZCBNode)
         }
         else
         {
-            user_controlbridge_log("New Node 0x%04X in neighbour table\n", psManagementLQIResponse->asNeighbours[i].u16ShortAddress);
+            user_controlbridge_log("New Node 0x%04X in neighbour table", psManagementLQIResponse->asNeighbours[i].u16ShortAddress);
 
             if ((eStatus = eZCB_AddNode(psManagementLQIResponse->asNeighbours[i].u16ShortAddress,
                                         psManagementLQIResponse->asNeighbours[i].u64IEEEAddress,
                                         0x0000, psManagementLQIResponse->asNeighbours[i].sBitmap.uMacCapability ? E_ZB_MAC_CAPABILITY_RXON_WHEN_IDLE : 0, NULL)) != E_ZCB_OK)
             {
-                user_controlbridge_log("Error adding node to network\n");
+                user_controlbridge_log("Error adding node to network");
                 break;
             }
         }
@@ -840,14 +836,16 @@ teZcbStatus eZCB_NeighbourTableRequest(tsZCB_Node *psZCBNode)
         status = eZCB_HandleZcbEvent(psEvent);
         if(status != E_ZCB_OK)
             user_controlbridge_log("Handle Zcb Event err");
+        else
+            user_controlbridge_log("Handle Zcb Event ok");
         //if (eUtils_QueueQueue(&sZcbEventQueue, psEvent) != E_UTILS_OK)
         //{
-        //   user_controlbridge_log("Error queue'ing event\n");
+        //   user_controlbridge_log("Error queue'ing event");
         //    free(psEvent);
         //}
         //else
         //{
-        //    user_controlbridge_log("Device join queued\n");
+        //    user_controlbridge_log("Device join queued");
         //}
     }
 
@@ -866,8 +864,10 @@ teZcbStatus eZCB_NeighbourTableRequest(tsZCB_Node *psZCBNode)
 done:
     psZCBNode = psZCB_FindNodeShortAddress(u16ShortAddress);
     vZCB_NodeUpdateComms(psZCBNode, eStatus);
-    if(psManagementLQIResponse != NULL)
-        free(psManagementLQIResponse);
+    //if(psManagementLQIResponse != NULL)
+    //free(psManagementLQIResponse);
+    //if(psEvent!=NULL)
+    //free(psEvent);
     return eStatus;
 }
 
@@ -907,7 +907,7 @@ teZcbStatus eZCB_IEEEAddressRequest(tsZCB_Node *psZCBNode)
     uint8_t u8SequenceNo;
     teZcbStatus eStatus = E_ZCB_COMMS_FAILED;
 
-    user_controlbridge_log("Send IEEE Address request to 0x%04X\n", psZCBNode->u16ShortAddress);
+    user_controlbridge_log("Send IEEE Address request to 0x%04X", psZCBNode->u16ShortAddress);
 
     sIEEEAddressRequest.u16TargetAddress    = htons(psZCBNode->u16ShortAddress);
     sIEEEAddressRequest.u16ShortAddress     = htons(psZCBNode->u16ShortAddress);
@@ -934,20 +934,20 @@ teZcbStatus eZCB_IEEEAddressRequest(tsZCB_Node *psZCBNode)
         }
         else
         {
-            user_controlbridge_log("IEEE Address sequence number received 0x%02X does not match that sent 0x%02X\n", psIEEEAddressResponse->u8SequenceNo, u8SequenceNo);
-            if(psIEEEAddressResponse != NULL)
-                free(psIEEEAddressResponse);
+            user_controlbridge_log("IEEE Address sequence number received 0x%02X does not match that sent 0x%02X", psIEEEAddressResponse->u8SequenceNo, u8SequenceNo);
+            //if(psIEEEAddressResponse != NULL)
+            //free(psIEEEAddressResponse);
         }
     }
     //psZCBNode->u64IEEEAddress = be64toh(psIEEEAddressResponse->u64IEEEAddress);
     psZCBNode->u64IEEEAddress = ntoh64(psIEEEAddressResponse->u64IEEEAddress);
-    user_controlbridge_log("Short address 0x%04X has IEEE Address 0x%016llX\n", psZCBNode->u16ShortAddress, (unsigned long long int)psZCBNode->u64IEEEAddress);
+    user_controlbridge_log("Short address 0x%04X has IEEE Address 0x%016llX", psZCBNode->u16ShortAddress, (unsigned long long int)psZCBNode->u64IEEEAddress);
     eStatus = E_ZCB_OK;
 
 done:
     vZCB_NodeUpdateComms(psZCBNode, eStatus);
-    if(psIEEEAddressResponse != NULL)
-        free(psIEEEAddressResponse);
+    //if(psIEEEAddressResponse != NULL)
+    //free(psIEEEAddressResponse);
     return eStatus;
 }
 
@@ -989,7 +989,7 @@ teZcbStatus eZCB_NodeDescriptorRequest(tsZCB_Node *psZCBNode)
     uint8_t u8SequenceNo;
     teZcbStatus eStatus = E_ZCB_COMMS_FAILED;
 
-    user_controlbridge_log("Send Node Descriptor request to 0x%04X\n", psZCBNode->u16ShortAddress);
+    user_controlbridge_log("Send Node Descriptor request to 0x%04X", psZCBNode->u16ShortAddress);
 
     sNodeDescriptorRequest.u16TargetAddress     = htons(psZCBNode->u16ShortAddress);
 
@@ -1014,9 +1014,9 @@ teZcbStatus eZCB_NodeDescriptorRequest(tsZCB_Node *psZCBNode)
         }
         else
         {
-            user_controlbridge_log("Node descriptor sequence number received 0x%02X does not match that sent 0x%02X\n", psNodeDescriptorResponse->u8SequenceNo, u8SequenceNo);
-            if(psNodeDescriptorResponse!=NULL)
-                free(psNodeDescriptorResponse);
+            user_controlbridge_log("Node descriptor sequence number received 0x%02X does not match that sent 0x%02X", psNodeDescriptorResponse->u8SequenceNo, u8SequenceNo);
+            //if(psNodeDescriptorResponse!=NULL)
+            //free(psNodeDescriptorResponse);
         }
     }
 
@@ -1026,8 +1026,8 @@ teZcbStatus eZCB_NodeDescriptorRequest(tsZCB_Node *psZCBNode)
     eStatus = E_ZCB_OK;
 done:
     vZCB_NodeUpdateComms(psZCBNode, eStatus);
-    if(psNodeDescriptorResponse!=NULL)
-        free(psNodeDescriptorResponse);
+    //if(psNodeDescriptorResponse!=NULL)
+    //free(psNodeDescriptorResponse);
     return eStatus;
 }
 
@@ -1084,30 +1084,27 @@ teZcbStatus eZCB_SimpleDescriptorRequest(tsZCB_Node *psZCBNode, uint8_t u8Endpoi
     while (1)
     {
         /* Wait 1 second for the descriptor message to arrive */
-		u8SequenceNo = u8SequenceNo +2;
         u32ZCB_CurrentWaitSeq = u8SequenceNo;
         user_controlbridge_log("want seq %d",u8SequenceNo);
-        if (eSL_MessageWait(E_SL_MSG_SIMPLE_DESCRIPTOR_RESPONSE, 800, &u16Length, (void**)&psSimpleDescriptorResponse) != E_SL_OK)
+        if (eSL_MessageWait(E_SL_MSG_SIMPLE_DESCRIPTOR_RESPONSE, 1800, &u16Length, (void**)&psSimpleDescriptorResponse) != E_SL_OK)
         {
             user_controlbridge_log("No response to simple descriptor request");
             goto done;
         }
 
-        if (u8SequenceNo == psSimpleDescriptorResponse->u8SequenceNo)
+        if (u8SequenceNo == psSimpleDescriptorResponse->u8SequenceNo || u8SequenceNo == (psSimpleDescriptorResponse->u8SequenceNo - 1) || u8SequenceNo == (psSimpleDescriptorResponse->u8SequenceNo - 2))
         {
             break;
         }
         else
         {
             user_controlbridge_log("Simple descriptor sequence number received 0x%02X does not match that sent 0x%02X", psSimpleDescriptorResponse->u8SequenceNo, u8SequenceNo);
-            //if(psSimpleDescriptorResponse != NULL)
-            //    free(psSimpleDescriptorResponse);
         }
     }
 
     /* Set device ID */
     psZCBNode->u16DeviceID = ntohs(psSimpleDescriptorResponse->u16DeviceID);
-
+    user_controlbridge_log("device id %d",psZCBNode->u16DeviceID);
     if (eZCB_NodeAddEndpoint(psZCBNode, psSimpleDescriptorResponse->u8Endpoint, ntohs(psSimpleDescriptorResponse->u16ProfileID), NULL) != E_ZCB_OK)
     {
         goto done;
@@ -1127,9 +1124,6 @@ teZcbStatus eZCB_SimpleDescriptorRequest(tsZCB_Node *psZCBNode, uint8_t u8Endpoi
     }
     eStatus = E_ZCB_OK;
 done:
-    vZCB_NodeUpdateComms(psZCBNode, eStatus);
-    //if(psSimpleDescriptorResponse != NULL)
-    //    free(psSimpleDescriptorResponse);
     return eStatus;
 }
 
@@ -1202,7 +1196,7 @@ teZcbStatus eZCB_ReadAttributeRequest(tsZCB_Node *psZCBNode, uint16_t u16Cluster
     uint8_t u8SequenceNo;
     teZcbStatus eStatus = E_ZCB_COMMS_FAILED;
 
-    user_controlbridge_log("Send Read Attribute request to 0x%04X\n", psZCBNode->u16ShortAddress);
+    user_controlbridge_log("Send Read Attribute request to 0x%04X", psZCBNode->u16ShortAddress);
 
     if (bZCB_EnableAPSAck)
     {
@@ -1251,9 +1245,9 @@ teZcbStatus eZCB_ReadAttributeRequest(tsZCB_Node *psZCBNode, uint16_t u16Cluster
         }
         else
         {
-            user_controlbridge_log("Read Attribute sequence number received 0x%02X does not match that sent 0x%02X\n", psReadAttributeResponseAddressed->u8SequenceNo, u8SequenceNo);
-            if(psReadAttributeResponseAddressed!=NULL)
-                free(psReadAttributeResponseAddressed);
+            user_controlbridge_log("Read Attribute sequence number received 0x%02X does not match that sent 0x%02X", psReadAttributeResponseAddressed->u8SequenceNo, u8SequenceNo);
+            //if(psReadAttributeResponseAddressed!=NULL)
+            //free(psReadAttributeResponseAddressed);
         }
     }
 
@@ -1265,11 +1259,11 @@ teZcbStatus eZCB_ReadAttributeRequest(tsZCB_Node *psZCBNode, uint16_t u16Cluster
             (psReadAttributeResponseAddressed->u16ClusterID         == htons(u16ClusterID)) &&
             (psReadAttributeResponseAddressed->u16AttributeID       == htons(u16AttributeID)))
     {
-        user_controlbridge_log("Received addressed read attribute response from 0x%04X\n", psZCBNode->u16ShortAddress);
+        user_controlbridge_log("Received addressed read attribute response from 0x%04X", psZCBNode->u16ShortAddress);
 
         if (psReadAttributeResponseAddressed->u8Status != E_ZCB_OK)
         {
-            user_controlbridge_log("Read Attribute respose error status: %d\n", psReadAttributeResponseAddressed->u8Status);
+            user_controlbridge_log("Read Attribute respose error status: %d", psReadAttributeResponseAddressed->u8Status);
             goto done;
         }
         psReadAttributeResponseData = (struct _ReadAttributeResponseData*)&psReadAttributeResponseAddressed->sData;
@@ -1278,18 +1272,18 @@ teZcbStatus eZCB_ReadAttributeRequest(tsZCB_Node *psZCBNode, uint16_t u16Cluster
              (psReadAttributeResponseUnaddressed->u16ClusterID   == htons(u16ClusterID)) &&
              (psReadAttributeResponseUnaddressed->u16AttributeID == htons(u16AttributeID)))
     {
-        user_controlbridge_log("Received unaddressed read attribute response from 0x%04X\n", psZCBNode->u16ShortAddress);
+        user_controlbridge_log("Received unaddressed read attribute response from 0x%04X", psZCBNode->u16ShortAddress);
 
         if (psReadAttributeResponseAddressed->u8Status != E_ZCB_OK)
         {
-            user_controlbridge_log("Read Attribute respose error status: %d\n", psReadAttributeResponseUnaddressed->u8Status);
+            user_controlbridge_log("Read Attribute respose error status: %d", psReadAttributeResponseUnaddressed->u8Status);
             goto done;
         }
         psReadAttributeResponseData = (struct _ReadAttributeResponseData*)&psReadAttributeResponseUnaddressed->sData;
     }
     else
     {
-        user_controlbridge_log("No valid read attribute response from 0x%04X\n", psZCBNode->u16ShortAddress);
+        user_controlbridge_log("No valid read attribute response from 0x%04X", psZCBNode->u16ShortAddress);
         goto done;
     }
 
@@ -1298,61 +1292,69 @@ teZcbStatus eZCB_ReadAttributeRequest(tsZCB_Node *psZCBNode, uint16_t u16Cluster
     */
     switch(psReadAttributeResponseData->u8Type)
     {
-    case(E_ZCL_GINT8):
-    case(E_ZCL_UINT8):
-    case(E_ZCL_INT8):
-    case(E_ZCL_ENUM8):
-    case(E_ZCL_BMAP8):
-    case(E_ZCL_BOOL):
-    case(E_ZCL_OSTRING):
-    case(E_ZCL_CSTRING):
-        memcpy(pvData, &psReadAttributeResponseData->uData.u8Data, sizeof(uint8_t));
-        eStatus = E_ZCB_OK;
-        break;
+        case(E_ZCL_GINT8):
+        case(E_ZCL_UINT8):
+        case(E_ZCL_INT8):
+        case(E_ZCL_ENUM8):
+        case(E_ZCL_BMAP8):
+        case(E_ZCL_BOOL):
+        case(E_ZCL_OSTRING):
+        case(E_ZCL_CSTRING):
+            memcpy(pvData, &psReadAttributeResponseData->uData.u8Data, sizeof(uint8_t));
+            eStatus = E_ZCB_OK;
+            break;
 
-    case(E_ZCL_LOSTRING):
-    case(E_ZCL_LCSTRING):
-    case(E_ZCL_STRUCT):
-    case(E_ZCL_INT16):
-    case(E_ZCL_UINT16):
-    case(E_ZCL_ENUM16):
-    case(E_ZCL_CLUSTER_ID):
-    case(E_ZCL_ATTRIBUTE_ID):
-        psReadAttributeResponseData->uData.u16Data = ntohs(psReadAttributeResponseData->uData.u16Data);
-        memcpy(pvData, &psReadAttributeResponseData->uData.u16Data, sizeof(uint16_t));
-        eStatus = E_ZCB_OK;
-        break;
+        case(E_ZCL_LOSTRING):
+        case(E_ZCL_LCSTRING):
+        case(E_ZCL_STRUCT):
+        case(E_ZCL_INT16):
+        case(E_ZCL_UINT16):
+        case(E_ZCL_ENUM16):
+        case(E_ZCL_CLUSTER_ID):
+        case(E_ZCL_ATTRIBUTE_ID):
+            psReadAttributeResponseData->uData.u16Data = ntohs(psReadAttributeResponseData->uData.u16Data);
+            //memcpy((void*)pvData, &psReadAttributeResponseData->uData.u16Data, sizeof(uint16_t));
+            uint16_t uDataTem;
+            uDataTem = psReadAttributeResponseData->uData.u16Data;
+            memcpy(pvData, &uDataTem, sizeof(uint16_t));                //void Pa039
+            eStatus = E_ZCB_OK;
+            break;
 
-    case(E_ZCL_UINT24):
-    case(E_ZCL_UINT32):
-    case(E_ZCL_TOD):
-    case(E_ZCL_DATE):
-    case(E_ZCL_UTCT):
-    case(E_ZCL_BACNET_OID):
-        psReadAttributeResponseData->uData.u32Data = ntohl(psReadAttributeResponseData->uData.u32Data);
-        memcpy(pvData, &psReadAttributeResponseData->uData.u32Data, sizeof(uint32_t));
-        eStatus = E_ZCB_OK;
-        break;
+        case(E_ZCL_UINT24):
+        case(E_ZCL_UINT32):
+        case(E_ZCL_TOD):
+        case(E_ZCL_DATE):
+        case(E_ZCL_UTCT):
+        case(E_ZCL_BACNET_OID):
+            psReadAttributeResponseData->uData.u32Data = ntohl(psReadAttributeResponseData->uData.u32Data);
+            //memcpy((void*)pvData, &psReadAttributeResponseData->uData.u32Data, sizeof(uint32_t));
+            uint32_t uDataTem_OID;
+            uDataTem_OID = psReadAttributeResponseData->uData.u32Data;
+            memcpy(pvData, &uDataTem_OID, sizeof(uint32_t));                //void Pa039
+            eStatus = E_ZCB_OK;
+            break;
 
-    case(E_ZCL_UINT40):
-    case(E_ZCL_UINT48):
-    case(E_ZCL_UINT56):
-    case(E_ZCL_UINT64):
-    case(E_ZCL_IEEE_ADDR):
-        //psReadAttributeResponseData->uData.u64Data = be64toh(psReadAttributeResponseData->uData.u64Data);
-        psReadAttributeResponseData->uData.u64Data = ntoh64(psReadAttributeResponseData->uData.u64Data);
-        memcpy(pvData, &psReadAttributeResponseData->uData.u64Data, sizeof(uint64_t));
-        eStatus = E_ZCB_OK;
-        break;
+        case(E_ZCL_UINT40):
+        case(E_ZCL_UINT48):
+        case(E_ZCL_UINT56):
+        case(E_ZCL_UINT64):
+        case(E_ZCL_IEEE_ADDR):
+            psReadAttributeResponseData->uData.u64Data = ntoh64(psReadAttributeResponseData->uData.u64Data);
+            //memcpy((void*)pvData, &psReadAttributeResponseData->uData.u64Data, sizeof(uint64_t));
+            uint64_t uDataTem_ADDR;
+            uDataTem_ADDR = psReadAttributeResponseData->uData.u64Data;
+            memcpy(pvData, &uDataTem_ADDR, sizeof(uint64_t));                //void Pa039
+            eStatus = E_ZCB_OK;
+            break;
 
-    default:
-        user_controlbridge_log("Unknown attribute data type (%d) received from node 0x%04X", psReadAttributeResponseData->u8Type, psZCBNode->u16ShortAddress);
-        break;
+        default:
+            user_controlbridge_log("Unknown attribute data type (%d) received from node 0x%04X", psReadAttributeResponseData->u8Type, psZCBNode->u16ShortAddress);
+            break;
     }
 done:
     vZCB_NodeUpdateComms(psZCBNode, eStatus);
-    if(psReadAttributeResponseAddressed!=NULL)
-        free(psReadAttributeResponseAddressed);
+    //if(psReadAttributeResponseAddressed!=NULL)
+    //free(psReadAttributeResponseAddressed);
     return eStatus;
 }
 
@@ -1384,6 +1386,7 @@ teZcbStatus eZCB_WriteAttributeRequest(tsZCB_Node *psZCBNode, uint16_t u16Cluste
         } uData;
     } sWriteAttributeRequest;
 #pragma pack()
+#if 0
 #pragma pack(1)
     struct _WriteAttributeResponse
     {
@@ -1407,6 +1410,7 @@ teZcbStatus eZCB_WriteAttributeRequest(tsZCB_Node *psZCBNode, uint16_t u16Cluste
         } uData;
     }*psWriteAttributeResponse = NULL;
 #pragma pack()
+#endif
 
 #pragma pack(1)
     struct _DataIndication
@@ -1434,7 +1438,7 @@ teZcbStatus eZCB_WriteAttributeRequest(tsZCB_Node *psZCBNode, uint16_t u16Cluste
     uint8_t u8SequenceNo;
     teZcbStatus eStatus = E_ZCB_COMMS_FAILED;
 
-    user_controlbridge_log("Send Write Attribute request to 0x%04X\n", psZCBNode->u16ShortAddress);
+    user_controlbridge_log("Send Write Attribute request to 0x%04X", psZCBNode->u16ShortAddress);
 
     if (bZCB_EnableAPSAck)
     {
@@ -1461,56 +1465,72 @@ teZcbStatus eZCB_WriteAttributeRequest(tsZCB_Node *psZCBNode, uint16_t u16Cluste
 
     switch(eType)
     {
-    case(E_ZCL_GINT8):
-    case(E_ZCL_UINT8):
-    case(E_ZCL_INT8):
-    case(E_ZCL_ENUM8):
-    case(E_ZCL_BMAP8):
-    case(E_ZCL_BOOL):
-    case(E_ZCL_OSTRING):
-    case(E_ZCL_CSTRING):
-        memcpy(&sWriteAttributeRequest.uData.u8Data, pvData, sizeof(uint8_t));
-        u16Length += sizeof(uint8_t);
-        break;
+        case(E_ZCL_GINT8):
+        case(E_ZCL_UINT8):
+        case(E_ZCL_INT8):
+        case(E_ZCL_ENUM8):
+        case(E_ZCL_BMAP8):
+        case(E_ZCL_BOOL):
+        case(E_ZCL_OSTRING):
+        case(E_ZCL_CSTRING):
+            memcpy(&sWriteAttributeRequest.uData.u8Data, pvData, sizeof(uint8_t));
+            u16Length += sizeof(uint8_t);
+            break;
 
-    case(E_ZCL_LOSTRING):
-    case(E_ZCL_LCSTRING):
-    case(E_ZCL_STRUCT):
-    case(E_ZCL_INT16):
-    case(E_ZCL_UINT16):
-    case(E_ZCL_ENUM16):
-    case(E_ZCL_CLUSTER_ID):
-    case(E_ZCL_ATTRIBUTE_ID):
-        memcpy(&sWriteAttributeRequest.uData.u16Data, pvData, sizeof(uint16_t));
-        sWriteAttributeRequest.uData.u16Data = ntohs(sWriteAttributeRequest.uData.u16Data);
-        u16Length += sizeof(uint16_t);
-        break;
+        case(E_ZCL_LOSTRING):
+        case(E_ZCL_LCSTRING):
+        case(E_ZCL_STRUCT):
+        case(E_ZCL_INT16):
+        case(E_ZCL_UINT16):
+        case(E_ZCL_ENUM16):
+        case(E_ZCL_CLUSTER_ID):
+        case(E_ZCL_ATTRIBUTE_ID):
+            {
+                //memcpy(&sWriteAttributeRequest.uData.u16Data, (void*)pvData, sizeof(uint16_t));
+                uint16_t uDataTem_ID;
+                memcpy(&uDataTem_ID,pvData,sizeof(uint16_t));                //void Pa039
+                sWriteAttributeRequest.uData.u16Data = uDataTem_ID;
 
-    case(E_ZCL_UINT24):
-    case(E_ZCL_UINT32):
-    case(E_ZCL_TOD):
-    case(E_ZCL_DATE):
-    case(E_ZCL_UTCT):
-    case(E_ZCL_BACNET_OID):
-        memcpy(&sWriteAttributeRequest.uData.u32Data, pvData, sizeof(uint32_t));
-        sWriteAttributeRequest.uData.u32Data = ntohl(sWriteAttributeRequest.uData.u32Data);
-        u16Length += sizeof(uint32_t);
-        break;
+                sWriteAttributeRequest.uData.u16Data = ntohs(sWriteAttributeRequest.uData.u16Data);
+                u16Length += sizeof(uint16_t);
+                break;
+            }
 
-    case(E_ZCL_UINT40):
-    case(E_ZCL_UINT48):
-    case(E_ZCL_UINT56):
-    case(E_ZCL_UINT64):
-    case(E_ZCL_IEEE_ADDR):
-        memcpy(&sWriteAttributeRequest.uData.u64Data, pvData, sizeof(uint64_t));
-        //sWriteAttributeRequest.uData.u64Data = be64toh(sWriteAttributeRequest.uData.u64Data);
-        sWriteAttributeRequest.uData.u64Data = ntoh64(sWriteAttributeRequest.uData.u64Data);
-        u16Length += sizeof(uint64_t);
-        break;
+        case(E_ZCL_UINT24):
+        case(E_ZCL_UINT32):
+        case(E_ZCL_TOD):
+        case(E_ZCL_DATE):
+        case(E_ZCL_UTCT):
+        case(E_ZCL_BACNET_OID):
+            {
+                //memcpy(&sWriteAttributeRequest.uData.u32Data, pvData, sizeof(uint32_t));
+                uint32_t uDataTem_OID;
+                memcpy(&uDataTem_OID,pvData,sizeof(uint32_t));                //void Pa039
+                sWriteAttributeRequest.uData.u32Data = uDataTem_OID;
 
-    default:
-        user_controlbridge_log("Unknown attribute data type (%d)", eType);
-        return E_ZCB_ERROR;
+                sWriteAttributeRequest.uData.u32Data = ntohl(sWriteAttributeRequest.uData.u32Data);
+                u16Length += sizeof(uint32_t);
+                break;
+            }
+        case(E_ZCL_UINT40):
+        case(E_ZCL_UINT48):
+        case(E_ZCL_UINT56):
+        case(E_ZCL_UINT64):
+        case(E_ZCL_IEEE_ADDR):
+            {
+                //memcpy(&sWriteAttributeRequest.uData.u64Data, pvData, sizeof(uint64_t));
+                uint64_t uDataTem_ADDR;
+                memcpy(&uDataTem_ADDR,pvData,sizeof(uint64_t));                //void Pa039
+                sWriteAttributeRequest.uData.u64Data = uDataTem_ADDR;
+                //sWriteAttributeRequest.uData.u64Data = be64toh(sWriteAttributeRequest.uData.u64Data);
+                sWriteAttributeRequest.uData.u64Data = ntoh64(sWriteAttributeRequest.uData.u64Data);
+                u16Length += sizeof(uint64_t);
+                break;
+            }
+
+        default:
+            user_controlbridge_log("Unknown attribute data type (%d)", eType);
+            return E_ZCB_ERROR;
     }
 
     if (eSL_SendMessage(E_SL_MSG_WRITE_ATTRIBUTE_REQUEST, u16Length, &sWriteAttributeRequest, &u8SequenceNo) != E_SL_OK)
@@ -1533,7 +1553,7 @@ teZcbStatus eZCB_WriteAttributeRequest(tsZCB_Node *psZCBNode, uint16_t u16Cluste
             goto done;
         }
 
-        user_controlbridge_log("Got data indication\n");
+        user_controlbridge_log("Got data indication");
 
         if (u8SequenceNo == psDataIndication->u8SequenceNo)
         {
@@ -1541,20 +1561,20 @@ teZcbStatus eZCB_WriteAttributeRequest(tsZCB_Node *psZCBNode, uint16_t u16Cluste
         }
         else
         {
-            user_controlbridge_log("Write Attribute sequence number received 0x%02X does not match that sent 0x%02X\n", psDataIndication->u8SequenceNo, u8SequenceNo);
-            if(psDataIndication!=NULL)
-                free(psDataIndication);
+            user_controlbridge_log("Write Attribute sequence number received 0x%02X does not match that sent 0x%02X", psDataIndication->u8SequenceNo, u8SequenceNo);
+            //if(psDataIndication!=NULL)
+            //free(psDataIndication);
         }
     }
 
-    user_controlbridge_log("Got write attribute response\n");
+    user_controlbridge_log("Got write attribute response");
 
     eStatus = psDataIndication->u8Status;
 
 done:
     vZCB_NodeUpdateComms(psZCBNode, eStatus);//??????????
-    if(psDataIndication!=NULL)
-        free(psDataIndication);
+    //if(psDataIndication!=NULL)
+    //free(psDataIndication);
     return eStatus;
 }
 
@@ -1586,20 +1606,20 @@ teZcbStatus eZCB_GetDefaultResponse(uint8_t u8SequenceNo)
 
         if (u8SequenceNo != psDefaultResponse->u8SequenceNo)
         {
-            user_controlbridge_log("Default response sequence number received 0x%02X does not match that sent 0x%02X\n", psDefaultResponse->u8SequenceNo, u8SequenceNo);
-            if(psDefaultResponse!=NULL)
-                free(psDefaultResponse);
+            user_controlbridge_log("Default response sequence number received 0x%02X does not match that sent 0x%02X", psDefaultResponse->u8SequenceNo, u8SequenceNo);
+            //if(psDefaultResponse!=NULL)
+            //free(psDefaultResponse);
         }
         else
         {
-            user_controlbridge_log("Default response for message sequence number 0x%02X status is %d\n", psDefaultResponse->u8SequenceNo, psDefaultResponse->u8Status);
+            user_controlbridge_log("Default response for message sequence number 0x%02X status is %d", psDefaultResponse->u8SequenceNo, psDefaultResponse->u8Status);
             eStatus = psDefaultResponse->u8Status;
             break;
         }
     }
 done:
-    if(psDefaultResponse!=NULL)
-        free(psDefaultResponse);
+    //if(psDefaultResponse!=NULL)
+    //free(psDefaultResponse);
     return eStatus;
 }
 
@@ -1662,7 +1682,7 @@ teZcbStatus eZCB_AddGroupMembership(tsZCB_Node *psZCBNode, uint16_t u16GroupAddr
     {
         goto done;
     }
-	
+
     while (1)
     {
         /* Wait 1 second for the add group response message to arrive */
@@ -1674,7 +1694,7 @@ teZcbStatus eZCB_AddGroupMembership(tsZCB_Node *psZCBNode, uint16_t u16GroupAddr
         }
 
         /* Work around bug in Zigbee */
-        if (1)//u8SequenceNo != psAddGroupMembershipResponse->u8SequenceNo)
+        if (1)//u8SequenceNo != psAddGroupMembershipResponse->u8SequenceNo)	//tobe modify
         {
             break;
         }
@@ -1682,7 +1702,7 @@ teZcbStatus eZCB_AddGroupMembership(tsZCB_Node *psZCBNode, uint16_t u16GroupAddr
         {
             user_controlbridge_log("Add group membership sequence number received 0x%02X does not match that sent 0x%02X", psAddGroupMembershipResponse->u8SequenceNo, u8SequenceNo);
             //if(psAddGroupMembershipResponse!=NULL)
-                //free(psAddGroupMembershipResponse);
+            //free(psAddGroupMembershipResponse);
         }
     }
 
@@ -1691,9 +1711,9 @@ teZcbStatus eZCB_AddGroupMembership(tsZCB_Node *psZCBNode, uint16_t u16GroupAddr
     eStatus = psAddGroupMembershipResponse->u8Status;
 
 done:
-    vZCB_NodeUpdateComms(psZCBNode, eStatus);
+    //vZCB_NodeUpdateComms(psZCBNode, eStatus);
     //if(psAddGroupMembershipResponse!=NULL)
-        //free(psAddGroupMembershipResponse);
+    //free(psAddGroupMembershipResponse);
     return eStatus;
 }
 
@@ -1732,7 +1752,7 @@ teZcbStatus eZCB_RemoveGroupMembership(tsZCB_Node *psZCBNode, uint16_t u16GroupA
     uint8_t u8SequenceNo;
     teZcbStatus eStatus = E_ZCB_COMMS_FAILED;
 
-    user_controlbridge_log("Send remove group membership 0x%04X request to 0x%04X\n", u16GroupAddress, psZCBNode->u16ShortAddress);
+    user_controlbridge_log("Send remove group membership 0x%04X request to 0x%04X", u16GroupAddress, psZCBNode->u16ShortAddress);
 
     if (bZCB_EnableAPSAck)
     {
@@ -1773,20 +1793,20 @@ teZcbStatus eZCB_RemoveGroupMembership(tsZCB_Node *psZCBNode, uint16_t u16GroupA
         }
         else
         {
-            user_controlbridge_log("Remove group membership sequence number received 0x%02X does not match that sent 0x%02X\n", psRemoveGroupMembershipResponse->u8SequenceNo, u8SequenceNo);
-            if(psRemoveGroupMembershipResponse!=NULL)
-                free(psRemoveGroupMembershipResponse);
+            user_controlbridge_log("Remove group membership sequence number received 0x%02X does not match that sent 0x%02X", psRemoveGroupMembershipResponse->u8SequenceNo, u8SequenceNo);
+            //if(psRemoveGroupMembershipResponse!=NULL)
+            //free(psRemoveGroupMembershipResponse);
         }
     }
 
-    user_controlbridge_log("Remove group membership 0x%04X on Node 0x%04X status: %d\n", u16GroupAddress, psZCBNode->u16ShortAddress, psRemoveGroupMembershipResponse->u8Status);
+    user_controlbridge_log("Remove group membership 0x%04X on Node 0x%04X status: %d", u16GroupAddress, psZCBNode->u16ShortAddress, psRemoveGroupMembershipResponse->u8Status);
 
     eStatus = psRemoveGroupMembershipResponse->u8Status;
 
 done:
     vZCB_NodeUpdateComms(psZCBNode, eStatus);
-    if(psRemoveGroupMembershipResponse!=NULL)
-        free(psRemoveGroupMembershipResponse);
+    //if(psRemoveGroupMembershipResponse!=NULL)
+    //free(psRemoveGroupMembershipResponse);
     return eStatus;
 }
 
@@ -1829,7 +1849,7 @@ teZcbStatus eZCB_GetGroupMembership(tsZCB_Node *psZCBNode)
     teZcbStatus eStatus = E_ZCB_COMMS_FAILED;
     int i;
 
-    user_controlbridge_log("Send get group membership request to 0x%04X\n", psZCBNode->u16ShortAddress);
+    user_controlbridge_log("Send get group membership request to 0x%04X", psZCBNode->u16ShortAddress);
 
     if (bZCB_EnableAPSAck)
     {
@@ -1870,13 +1890,13 @@ teZcbStatus eZCB_GetGroupMembership(tsZCB_Node *psZCBNode)
         }
         else
         {
-            user_controlbridge_log("Get group membership sequence number received 0x%02X does not match that sent 0x%02X\n", psGetGroupMembershipResponse->u8SequenceNo, u8SequenceNo);
-            if(psGetGroupMembershipResponse!=NULL)
-                free(psGetGroupMembershipResponse);
+            user_controlbridge_log("Get group membership sequence number received 0x%02X does not match that sent 0x%02X", psGetGroupMembershipResponse->u8SequenceNo, u8SequenceNo);
+            //if(psGetGroupMembershipResponse!=NULL)
+            //free(psGetGroupMembershipResponse);
         }
     }
 
-    user_controlbridge_log("Node 0x%04X is in %d/%d groups\n", psZCBNode->u16ShortAddress,
+    user_controlbridge_log("Node 0x%04X is in %d/%d groups", psZCBNode->u16ShortAddress,
                            psGetGroupMembershipResponse->u8GroupCount,
                            psGetGroupMembershipResponse->u8GroupCount + psGetGroupMembershipResponse->u8Capacity);
 
@@ -1888,7 +1908,7 @@ teZcbStatus eZCB_GetGroupMembership(tsZCB_Node *psZCBNode)
     for(i = 0; i < psGetGroupMembershipResponse->u8GroupCount; i++)
     {
         psGetGroupMembershipResponse->au16GroupList[i] = ntohs(psGetGroupMembershipResponse->au16GroupList[i]);
-        user_controlbridge_log("  Group ID 0x%04X\n", psGetGroupMembershipResponse->au16GroupList[i]);
+        user_controlbridge_log("  Group ID 0x%04X", psGetGroupMembershipResponse->au16GroupList[i]);
         if ((eStatus = eZCB_NodeAddGroup(psZCBNode, psGetGroupMembershipResponse->au16GroupList[i])) != E_ZCB_OK)
         {
             goto done;
@@ -1897,8 +1917,8 @@ teZcbStatus eZCB_GetGroupMembership(tsZCB_Node *psZCBNode)
     eStatus = E_ZCB_OK;
 done:
     vZCB_NodeUpdateComms(psZCBNode, eStatus);
-    if(psGetGroupMembershipResponse!=NULL)
-        free(psGetGroupMembershipResponse);
+    //if(psGetGroupMembershipResponse!=NULL)
+    //free(psGetGroupMembershipResponse);
     return eStatus;
 }
 
@@ -1923,7 +1943,7 @@ teZcbStatus eZCB_ClearGroupMembership(tsZCB_Node *psZCBNode)
 #pragma pack()
     teZcbStatus eStatus = E_ZCB_COMMS_FAILED;
 
-    user_controlbridge_log("Send clear group membership request to 0x%04X\n", psZCBNode->u16ShortAddress);
+    user_controlbridge_log("Send clear group membership request to 0x%04X", psZCBNode->u16ShortAddress);
 
     if (bZCB_EnableAPSAck)
     {
@@ -1987,7 +2007,7 @@ teZcbStatus eZCB_RemoveScene(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, ui
     uint8_t u8SequenceNo;
     teZcbStatus eStatus = E_ZCB_COMMS_FAILED;
 
-    user_controlbridge_log("Send remove scene %d (Group 0x%04X) for Endpoint %d to 0x%04X\n",
+    user_controlbridge_log("Send remove scene %d (Group 0x%04X) for Endpoint %d to 0x%04X",
                            u8SceneID, u16GroupAddress, sRemoveSceneRequest.u8DestinationEndpoint, psZCBNode->u16ShortAddress);
 
     if (psZCBNode)
@@ -2045,20 +2065,20 @@ teZcbStatus eZCB_RemoveScene(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, ui
         }
         else
         {
-            user_controlbridge_log("Remove scene sequence number received 0x%02X does not match that sent 0x%02X\n", psRemoveSceneResponse->u8SequenceNo, u8SequenceNo);
-            if(psRemoveSceneResponse!=NULL)
-                free(psRemoveSceneResponse);
+            user_controlbridge_log("Remove scene sequence number received 0x%02X does not match that sent 0x%02X", psRemoveSceneResponse->u8SequenceNo, u8SequenceNo);
+            //if(psRemoveSceneResponse!=NULL)
+            //free(psRemoveSceneResponse);
         }
     }
 
-    user_controlbridge_log("Remove scene %d (Group0x%04X) on Node 0x%04X status: %d\n",
+    user_controlbridge_log("Remove scene %d (Group0x%04X) on Node 0x%04X status: %d",
                            psRemoveSceneResponse->u8SceneID, ntohs(psRemoveSceneResponse->u16GroupAddress), psZCBNode->u16ShortAddress, psRemoveSceneResponse->u8Status);
 
     eStatus = psRemoveSceneResponse->u8Status;
 done:
     vZCB_NodeUpdateComms(psZCBNode, eStatus);
-    if(psRemoveSceneResponse!=NULL)
-        free(psRemoveSceneResponse);
+    //if(psRemoveSceneResponse!=NULL)
+    //free(psRemoveSceneResponse);
     return eStatus;
 }
 
@@ -2099,7 +2119,7 @@ teZcbStatus eZCB_StoreScene(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, uin
     uint8_t u8SequenceNo;
     teZcbStatus eStatus = E_ZCB_COMMS_FAILED;
 
-    user_controlbridge_log("Send store scene %d (Group 0x%04X)\n",
+    user_controlbridge_log("Send store scene %d (Group 0x%04X)",
                            u8SceneID, u16GroupAddress);
 
     if (psZCBNode)
@@ -2156,20 +2176,20 @@ teZcbStatus eZCB_StoreScene(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, uin
         }
         else
         {
-            user_controlbridge_log("Store scene sequence number received 0x%02X does not match that sent 0x%02X\n", psStoreSceneResponse->u8SequenceNo, u8SequenceNo);
-            if(psStoreSceneResponse!=NULL)
-                free(psStoreSceneResponse);
+            user_controlbridge_log("Store scene sequence number received 0x%02X does not match that sent 0x%02X", psStoreSceneResponse->u8SequenceNo, u8SequenceNo);
+            //if(psStoreSceneResponse!=NULL)
+            //free(psStoreSceneResponse);
         }
     }
 
-    user_controlbridge_log("Store scene %d (Group0x%04X) on Node 0x%04X status: %d\n",
+    user_controlbridge_log("Store scene %d (Group0x%04X) on Node 0x%04X status: %d",
                            psStoreSceneResponse->u8SceneID, ntohs(psStoreSceneResponse->u16GroupAddress), ntohs(psZCBNode->u16ShortAddress), psStoreSceneResponse->u8Status);
 
     eStatus = psStoreSceneResponse->u8Status;
 done:
     vZCB_NodeUpdateComms(psZCBNode, eStatus);
-    if(psStoreSceneResponse!=NULL)
-        free(psStoreSceneResponse);
+    //if(psStoreSceneResponse!=NULL)
+    //free(psStoreSceneResponse);
     return eStatus;
 }
 
@@ -2200,7 +2220,7 @@ teZcbStatus eZCB_RecallScene(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, ui
 
     if (psZCBNode)
     {
-        user_controlbridge_log("Send recall scene %d (Group 0x%04X) to 0x%04X\n",
+        user_controlbridge_log("Send recall scene %d (Group 0x%04X) to 0x%04X",
                                u8SceneID, u16GroupAddress, psZCBNode->u16ShortAddress);
 
         if (bZCB_EnableAPSAck)
@@ -2224,7 +2244,7 @@ teZcbStatus eZCB_RecallScene(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, ui
         sRecallSceneRequest.u16TargetAddress     = htons(u16GroupAddress);
         sRecallSceneRequest.u8DestinationEndpoint= ZB_DEFAULT_ENDPOINT_ZLL;
 
-        user_controlbridge_log("Send recall scene %d (Group 0x%04X) for Endpoint %d to 0x%04X\n",
+        user_controlbridge_log("Send recall scene %d (Group 0x%04X) for Endpoint %d to 0x%04X",
                                u8SceneID, u16GroupAddress, sRecallSceneRequest.u8DestinationEndpoint, u16GroupAddress);
 
         if (eZCB_GetEndpoints(NULL, E_ZB_CLUSTERID_SCENES, &sRecallSceneRequest.u8SourceEndpoint, NULL) != E_ZCB_OK)
@@ -2291,7 +2311,7 @@ teZcbStatus eZCB_GetSceneMembership(tsZCB_Node *psZCBNode, uint16_t u16GroupAddr
     uint8_t u8SequenceNo;
     teZcbStatus eStatus = E_ZCB_COMMS_FAILED;
 
-    user_controlbridge_log("Send get scene membership for group 0x%04X to 0x%04X\n",
+    user_controlbridge_log("Send get scene membership for group 0x%04X to 0x%04X",
                            u16GroupAddress, psZCBNode->u16ShortAddress);
 
     if (bZCB_EnableAPSAck)
@@ -2333,13 +2353,13 @@ teZcbStatus eZCB_GetSceneMembership(tsZCB_Node *psZCBNode, uint16_t u16GroupAddr
         }
         else
         {
-            user_controlbridge_log("Get scene membership sequence number received 0x%02X does not match that sent 0x%02X\n", psGetSceneMembershipResponse->u8SequenceNo, u8SequenceNo);
-            if(psGetSceneMembershipResponse!=NULL)
-                free(psGetSceneMembershipResponse);
+            user_controlbridge_log("Get scene membership sequence number received 0x%02X does not match that sent 0x%02X", psGetSceneMembershipResponse->u8SequenceNo, u8SequenceNo);
+            //if(psGetSceneMembershipResponse!=NULL)
+            //free(psGetSceneMembershipResponse);
         }
     }
 
-    user_controlbridge_log("Scene membership for group 0x%04X on Node 0x%04X status: %d\n",
+    user_controlbridge_log("Scene membership for group 0x%04X on Node 0x%04X status: %d",
                            ntohs(psGetSceneMembershipResponse->u16GroupAddress), psZCBNode->u16ShortAddress, psGetSceneMembershipResponse->u8Status);
 
     eStatus = psGetSceneMembershipResponse->u8Status;
@@ -2347,7 +2367,7 @@ teZcbStatus eZCB_GetSceneMembership(tsZCB_Node *psZCBNode, uint16_t u16GroupAddr
     if (eStatus == E_ZCB_OK)
     {
         int i;
-        user_controlbridge_log("Node 0x%04X, group 0x%04X is in %d scenes\n",
+        user_controlbridge_log("Node 0x%04X, group 0x%04X is in %d scenes",
                                psZCBNode->u16ShortAddress, ntohs(psGetSceneMembershipResponse->u16GroupAddress), psGetSceneMembershipResponse->u8NumScenes);
 
         *pu8NumScenes = psGetSceneMembershipResponse->u8NumScenes;
@@ -2359,15 +2379,15 @@ teZcbStatus eZCB_GetSceneMembership(tsZCB_Node *psZCBNode, uint16_t u16GroupAddr
 
         for (i = 0; i < psGetSceneMembershipResponse->u8NumScenes; i++)
         {
-            user_controlbridge_log("  Scene 0x%02X\n", psGetSceneMembershipResponse->au8Scenes[i]);
+            user_controlbridge_log("  Scene 0x%02X", psGetSceneMembershipResponse->au8Scenes[i]);
             (*pau8Scenes)[i] = psGetSceneMembershipResponse->au8Scenes[i];
         }
     }
 
 done:
     vZCB_NodeUpdateComms(psZCBNode, eStatus);
-    if(psGetSceneMembershipResponse!=NULL)
-        free(psGetSceneMembershipResponse);
+    //if(psGetSceneMembershipResponse!=NULL)
+    //free(psGetSceneMembershipResponse);
     return eStatus;
 }
 
@@ -2397,7 +2417,7 @@ teZcbStatus eZCB_GetEndpoints(tsZCB_Node *psZCBNode, eZigbee_ClusterID eClusterI
         psSourceEndpoint = psZCB_NodeFindEndpoint(psControlBridge, eClusterID);
         if (!psSourceEndpoint)
         {
-            user_controlbridge_log("Cluster ID 0x%04X not found on control bridge\n", eClusterID);
+            user_controlbridge_log("Cluster ID 0x%04X not found on control bridge", eClusterID);
             mico_rtos_lock_mutex(&psControlBridge->sLock);
             return E_ZCB_UNKNOWN_CLUSTER;
         }
@@ -2416,7 +2436,7 @@ teZcbStatus eZCB_GetEndpoints(tsZCB_Node *psZCBNode, eZigbee_ClusterID eClusterI
 
         if (!psDestinationEndpoint)
         {
-            user_controlbridge_log("Cluster ID 0x%04X not found on node 0x%04X\n", eClusterID, psZCBNode->u16ShortAddress);
+            user_controlbridge_log("Cluster ID 0x%04X not found on node 0x%04X", eClusterID, psZCBNode->u16ShortAddress);
             return E_ZCB_UNKNOWN_CLUSTER;
         }
         *pu8Dst = psDestinationEndpoint->u8Endpoint;
@@ -2505,7 +2525,7 @@ void ZCB_HandleNodeClusterAttributeList(void *pvUser, uint16_t u16Length, void *
     psClusterAttributeList->u16ProfileID = ntohs(psClusterAttributeList->u16ProfileID);
     psClusterAttributeList->u16ClusterID = ntohs(psClusterAttributeList->u16ClusterID);
 
-//    user_controlbridge_log("Cluster attribute list for endpoint %d, cluster 0x%04X, profile ID 0x%4X\n",
+//    user_controlbridge_log("Cluster attribute list for endpoint %d, cluster 0x%04X, profile ID 0x%4X",
 //                           psClusterAttributeList->u8Endpoint,
 //                           psClusterAttributeList->u16ClusterID,
 //                           psClusterAttributeList->u16ProfileID);
@@ -2555,7 +2575,7 @@ void ZCB_HandleNodeCommandIDList(void *pvUser, uint16_t u16Length, void *pvMessa
     psCommandIDList->u16ProfileID = ntohs(psCommandIDList->u16ProfileID);
     psCommandIDList->u16ClusterID = ntohs(psCommandIDList->u16ClusterID);
 
-//    user_controlbridge_log("Command ID list for endpoint %d, cluster 0x%04X, profile ID 0x%4X\n",
+//    user_controlbridge_log("Command ID list for endpoint %d, cluster 0x%04X, profile ID 0x%4X",
 //                           psCommandIDList->u8Endpoint,
 //                           psCommandIDList->u16ClusterID,
 //                           psCommandIDList->u16ProfileID);
@@ -2600,18 +2620,20 @@ void ZCB_HandleRestartProvisioned(void *pvUser, uint16_t u16Length, void *pvMess
     switch (psWarmRestart->u8Status)
     {
 #define STATUS(a, b) case(a): pcStatus = b; break
-        STATUS(0, "STARTUP");
-        STATUS(1, "WAIT_START");
-        STATUS(2, "NFN_START");
-        STATUS(3, "DISCOVERY");
-        STATUS(4, "NETWORK_INIT");
-        STATUS(5, "RESCAN");
-        STATUS(6, "RUNNING");
+            STATUS(0, "STARTUP");
+            STATUS(1, "WAIT_START");
+            STATUS(2, "NFN_START");
+            STATUS(3, "DISCOVERY");
+            STATUS(4, "NETWORK_INIT");
+            STATUS(5, "RESCAN");
+            STATUS(6, "RUNNING");
 #undef STATUS
-    default:
-        pcStatus = "Unknown";
+        default:
+            pcStatus = "Unknown";
     }
     user_controlbridge_log("Control bridge restarted, status %d (%s)", psWarmRestart->u8Status, pcStatus);
+    //搜索网络中的节点
+
     return;
 }
 
@@ -2634,23 +2656,22 @@ void ZCB_HandleRestartFactoryNew(void *pvUser, uint16_t u16Length, void *pvMessa
         uint8_t     u8Status;
     }*psWarmRestart = (struct _tsWarmRestart *)pvMessage;
 #pragma pack()
+
     switch (psWarmRestart->u8Status)
     {
 #define STATUS(a, b) case(a): pcStatus = b; break
-        STATUS(0, "STARTUP");
-        STATUS(1, "WAIT_START");
-        STATUS(2, "NFN_START");
-        STATUS(3, "DISCOVERY");
-        STATUS(4, "NETWORK_INIT");
-        STATUS(5, "RESCAN");
-        STATUS(6, "RUNNING");
+            STATUS(0, "STARTUP");
+            STATUS(1, "WAIT_START");
+            STATUS(2, "NFN_START");
+            STATUS(3, "DISCOVERY");
+            STATUS(4, "NETWORK_INIT");
+            STATUS(5, "RESCAN");
+            STATUS(6, "RUNNING");
 #undef STATUS
-    default:
-        pcStatus = "Unknown";
+        default:
+            pcStatus = "Unknown";
     }
     user_controlbridge_log("Control bridge factory new restart, status %d (%s)", psWarmRestart->u8Status, pcStatus);
-
-    eZCB_ConfigureControlBridge();
     return;
 }
 
@@ -2747,11 +2768,12 @@ void ZCB_HandleNetworkJoined(void *pvUser, uint16_t u16Length, void *pvMessage)
     status = eZCB_HandleZcbEvent(psEvent);
     if(status != E_ZCB_OK)
         user_controlbridge_log("Handle Zcb Event err");
-
+    else
+        user_controlbridge_log("Handle Zcb Event ok");
 
     //if (eUtils_QueueQueue(&sZcbEventQueue, psEvent) != TRUE)
     //{
-    //   user_controlbridge_log("Error queue'ing event\n");
+    //   user_controlbridge_log("Error queue'ing event");
     //    free(psEvent);
     //}
 
@@ -2778,12 +2800,12 @@ void ZCB_HandleNetworkJoined(void *pvUser, uint16_t u16Length, void *pvMessage)
 
             if (eUtils_QueueQueue(&sZcbEventQueue, psEvent) != E_UTILS_OK)
             {
-                user_controlbridge_log("Error queue'ing event\n");
+                user_controlbridge_log("Error queue'ing event");
                 free(psEvent);
             }
             else
             {
-                user_controlbridge_log("Test device added\n");
+                user_controlbridge_log("Test device added");
             }
         }
     }
@@ -2794,14 +2816,13 @@ void ZCB_HandleNetworkJoined(void *pvUser, uint16_t u16Length, void *pvMessage)
 
 /****************************************************************************
 * Function	: ZCB_HandleDeviceAnnounce
-* Description	: 处理设备 Announce
+* Description	: 处理 Device Announce
 * Input Para	:
 * Output Para	:
 * Return Value:
 ****************************************************************************/
-void ZCB_HandleDeviceAnnounce(void *pvUser, uint16_t u16Length, void *pvMessage)
+void ZCB_HandleDeviceAnnounce(void *pvUser, uint16_t u16Length, void *pvMessage,uint16_t deviceID)
 {
-
     tsZCB_Node *psZCBNode;
     tsZcbEvent *psEvent = NULL;
     teZcbStatus status = E_ZCB_ERROR;
@@ -2816,11 +2837,11 @@ void ZCB_HandleDeviceAnnounce(void *pvUser, uint16_t u16Length, void *pvMessage)
     psMessage->u16ShortAddress  = ntohs(psMessage->u16ShortAddress);
     psMessage->u64IEEEAddress   = ntoh64(psMessage->u64IEEEAddress);
 
-    user_controlbridge_log("Device Joined, Address 0x%04X (0x%016llX). Mac Capability Mask 0x%02X",
-                           psMessage->u16ShortAddress,
-                           (unsigned long long int)psMessage->u64IEEEAddress,
-                           psMessage->u8MacCapability
-                          );
+//    user_controlbridge_log("Device Joined, Address 0x%04X (0x%016llX). Mac Capability Mask 0x%02X",
+//                           psMessage->u16ShortAddress,
+//                           (unsigned long long int)psMessage->u64IEEEAddress,
+//                           psMessage->u8MacCapability
+//                          );
 
     psEvent = malloc(sizeof(tsZcbEvent));
     if (!psEvent)
@@ -2828,19 +2849,22 @@ void ZCB_HandleDeviceAnnounce(void *pvUser, uint16_t u16Length, void *pvMessage)
         user_controlbridge_log("Memory allocation failure allocating event");
         return;
     }
-
-    if (eZCB_AddNode(psMessage->u16ShortAddress, psMessage->u64IEEEAddress, 0, psMessage->u8MacCapability, &psZCBNode) == E_ZCB_OK)
+    //增加新的节点 Node
+    if (eZCB_AddNode(psMessage->u16ShortAddress, psMessage->u64IEEEAddress, deviceID, psMessage->u8MacCapability, &psZCBNode) == E_ZCB_OK)
     {
         psEvent->eEvent                                 = E_ZCB_EVENT_DEVICE_ANNOUNCE;
         psEvent->uData.sDeviceAnnounce.u16ShortAddress  = psZCBNode->u16ShortAddress;
 
         psZCBNode->u8MacCapability = psMessage->u8MacCapability;
 
-        mico_rtos_unlock_mutex(&psZCBNode->sLock);
-
-        status = eZCB_HandleZcbEvent(psEvent);
+        status = eZCB_HandleZcbEvent(psEvent);		//处理 ZCB 事件: Device Announce
         if(status != E_ZCB_OK)
-            user_controlbridge_log("Handle Zcb Event Err");
+            user_controlbridge_log("Handle Device Ann Err");
+
+    }
+    else
+    {
+        user_controlbridge_log("add node err");
     }
     return;
 }
@@ -2885,16 +2909,8 @@ void ZCB_HandleDeviceLeave(void *pvUser, uint16_t u16Length, void *pvMessage)
     status = eZCB_HandleZcbEvent(psEvent);
     if(status != E_ZCB_OK)
         user_controlbridge_log("Handle Zcb Event err");
-
-    //    if (eUtils_QueueQueue(&sZcbEventQueue, psEvent) != TRUE)
-    //    {
-    //        user_controlbridge_log("Error queue'ing event\n");
-    //        free(psEvent);
-    //    }
-    //    else
-    //    {
-    //        user_controlbridge_log("Device leave queued\n");
-    //    }
+    else
+        user_controlbridge_log("Handle Zcb Event ok");
     return;
 }
 
@@ -2968,12 +2984,9 @@ void ZCB_HandleMatchDescriptorResponse(void *pvUser, uint16_t u16Length, void *p
             teZcbStatus status ;
             status = eZCB_HandleZcbEvent(psEvent);
             if(status != E_ZCB_OK)
-                user_controlbridge_log("Handle Zcb Event err");
-            //            if (eUtils_QueueQueue(&sZcbEventQueue, psEvent) != TRUE)
-            //            {
-            //                user_controlbridge_log("Error queue'ing event\n");
-            //                free(psEvent);
-            //            }
+                user_controlbridge_log("Handle MatchDescrip err");
+            else
+                user_controlbridge_log("Handle MatchDescrip ok");
         }
     }
     return;
@@ -3016,7 +3029,7 @@ void ZCB_HandleAttributeReport(void *pvUser, uint16_t u16Length, void *pvMessage
     psMessage->u16ClusterID     = ntohs(psMessage->u16ClusterID);
     psMessage->u16AttributeID   = ntohs(psMessage->u16AttributeID);
 
-    user_controlbridge_log("Attribute report from 0x%04X - Endpoint %d, cluster 0x%04X, attribute %d.\n",
+    user_controlbridge_log("Attribute report from 0x%04X - Endpoint %d, cluster 0x%04X, attribute %d.",
                            psMessage->u16ShortAddress,
                            psMessage->u8Endpoint,
                            psMessage->u16ClusterID,
@@ -3039,53 +3052,52 @@ void ZCB_HandleAttributeReport(void *pvUser, uint16_t u16Length, void *pvMessage
 
     switch(psMessage->u8Type)
     {
-    case(E_ZCL_GINT8):
-    case(E_ZCL_UINT8):
-    case(E_ZCL_INT8):
-    case(E_ZCL_ENUM8):
-    case(E_ZCL_BMAP8):
-    case(E_ZCL_BOOL):
-    case(E_ZCL_OSTRING):
-    case(E_ZCL_CSTRING):
-        psEvent->uData.sAttributeReport.uData.u8Data = psMessage->uData.u8Data;
-        eStatus = E_ZCB_OK;
-        break;
+        case(E_ZCL_GINT8):
+        case(E_ZCL_UINT8):
+        case(E_ZCL_INT8):
+        case(E_ZCL_ENUM8):
+        case(E_ZCL_BMAP8):
+        case(E_ZCL_BOOL):
+        case(E_ZCL_OSTRING):
+        case(E_ZCL_CSTRING):
+            psEvent->uData.sAttributeReport.uData.u8Data = psMessage->uData.u8Data;
+            eStatus = E_ZCB_OK;
+            break;
 
-    case(E_ZCL_LOSTRING):
-    case(E_ZCL_LCSTRING):
-    case(E_ZCL_STRUCT):
-    case(E_ZCL_INT16):
-    case(E_ZCL_UINT16):
-    case(E_ZCL_ENUM16):
-    case(E_ZCL_CLUSTER_ID):
-    case(E_ZCL_ATTRIBUTE_ID):
-        psEvent->uData.sAttributeReport.uData.u16Data = ntohs(psMessage->uData.u16Data);
-        eStatus = E_ZCB_OK;
-        break;
+        case(E_ZCL_LOSTRING):
+        case(E_ZCL_LCSTRING):
+        case(E_ZCL_STRUCT):
+        case(E_ZCL_INT16):
+        case(E_ZCL_UINT16):
+        case(E_ZCL_ENUM16):
+        case(E_ZCL_CLUSTER_ID):
+        case(E_ZCL_ATTRIBUTE_ID):
+            psEvent->uData.sAttributeReport.uData.u16Data = ntohs(psMessage->uData.u16Data);
+            eStatus = E_ZCB_OK;
+            break;
 
-    case(E_ZCL_UINT24):
-    case(E_ZCL_UINT32):
-    case(E_ZCL_TOD):
-    case(E_ZCL_DATE):
-    case(E_ZCL_UTCT):
-    case(E_ZCL_BACNET_OID):
-        psEvent->uData.sAttributeReport.uData.u32Data = ntohl(psMessage->uData.u32Data);
-        eStatus = E_ZCB_OK;
-        break;
+        case(E_ZCL_UINT24):
+        case(E_ZCL_UINT32):
+        case(E_ZCL_TOD):
+        case(E_ZCL_DATE):
+        case(E_ZCL_UTCT):
+        case(E_ZCL_BACNET_OID):
+            psEvent->uData.sAttributeReport.uData.u32Data = ntohl(psMessage->uData.u32Data);
+            eStatus = E_ZCB_OK;
+            break;
 
-    case(E_ZCL_UINT40):
-    case(E_ZCL_UINT48):
-    case(E_ZCL_UINT56):
-    case(E_ZCL_UINT64):
-    case(E_ZCL_IEEE_ADDR):
-        //psEvent->uData.sAttributeReport.uData.u64Data = be64toh(psMessage->uData.u64Data);
-        psEvent->uData.sAttributeReport.uData.u64Data = ntoh64(psMessage->uData.u64Data);
-        eStatus = E_ZCB_OK;
-        break;
+        case(E_ZCL_UINT40):
+        case(E_ZCL_UINT48):
+        case(E_ZCL_UINT56):
+        case(E_ZCL_UINT64):
+        case(E_ZCL_IEEE_ADDR):
+            psEvent->uData.sAttributeReport.uData.u64Data = ntoh64(psMessage->uData.u64Data);
+            eStatus = E_ZCB_OK;
+            break;
 
-    default:
-        user_controlbridge_log("Unknown attribute data type (%d) received from node 0x%04X", psMessage->u8Type, psMessage->u16ShortAddress);
-        break;
+        default:
+            user_controlbridge_log("Unknown attribute data type (%d) received from node 0x%04X", psMessage->u8Type, psMessage->u16ShortAddress);
+            break;
     }
 
     if (eStatus == E_ZCB_OK)
@@ -3094,18 +3106,149 @@ void ZCB_HandleAttributeReport(void *pvUser, uint16_t u16Length, void *pvMessage
         status = eZCB_HandleZcbEvent(psEvent);
         if(status != E_ZCB_OK)
             user_controlbridge_log("Handle Zcb Event err");
-        //        if (eUtils_QueueQueue(&sZcbEventQueue, psEvent) != TRUE)
-        //        {
-        //            user_controlbridge_log("Error queue'ing event\n");
-        //            free(psEvent);
-        //        }
+        else
+            user_controlbridge_log("Handle Zcb Event ok");
     }
     else
     {
-        free(psEvent);
+        if(psEvent != NULL)
+            free(psEvent);
     }
+
+    //if(psEvent != NULL)
+    //    free(psEvent);
     return;
 }
+
+/****************************************************************************
+* Function	: ZCB_HandleIASZoneStatusChangeNotify
+* Description	:
+* Input Para	:
+* Output Para	:
+* Return Value:
+****************************************************************************/
+void ZCB_HandleIASZoneStatusChangeNotify(void *pvUser, uint16_t u16Length, void *pvMessage)
+{
+    /*
+    <sequence number: uint8_t>
+    <endpoint : uint8_t>
+    <cluster id: uint16_t>
+    <src address mode: uint8_t>
+    <src address: uint64_t or uint16_t based on address mode>
+    <zone status: uint16_t>
+    <extended status: uint8_t>
+    <zone id : uint8_t>
+    <delay: data each element uint16_t>
+    */
+
+#pragma pack(1)
+    struct _tsIASZoneStatusChangeNofity
+    {
+        uint8_t     u8SequenceNo;
+        uint8_t     u8Endpoint;
+        uint16_t    u16ClusterID;
+
+        uint16_t	u16ZoneStatus;
+        uint8_t		u8ExtendedStatus;
+        uint8_t		u8ZoneId;
+        uint16_t	u16Delay;
+        uint8_t		u8SrcAddrMode;
+        union
+        {
+            uint16_t    u16Addr;
+            uint64_t    u64Addr;
+        } uSrcAddress;
+    }*psMessage = (struct _tsIASZoneStatusChangeNofity *)pvMessage;
+#pragma pack()
+
+    psMessage->u16ClusterID = ntohs(psMessage->u16ClusterID);
+    psMessage->u16ZoneStatus = ntohs(psMessage->u16ZoneStatus);
+    psMessage->u16Delay = ntohs(psMessage->u16Delay);
+
+
+    switch(psMessage->u8SrcAddrMode)
+    {
+        case 0x03:
+            psMessage->uSrcAddress.u64Addr = ntoh64(psMessage->uSrcAddress.u64Addr);
+            break;
+        default:
+            psMessage->uSrcAddress.u16Addr = ntohs(psMessage->uSrcAddress.u16Addr);
+            break;
+    }
+    user_controlbridge_log("u8SequenceNo:%d",psMessage->u8SequenceNo);
+    user_controlbridge_log("u8Endpoint:%d",psMessage->u8Endpoint);
+    user_controlbridge_log("u16ClusterID:%x",psMessage->u16ClusterID);
+    user_controlbridge_log("u8SrcAddrMode:%d",psMessage->u8SrcAddrMode);
+    user_controlbridge_log("u16ZoneStatus:%x",psMessage->u16ZoneStatus);
+    user_controlbridge_log("u8ExtendedStatus:%x",psMessage->u8ExtendedStatus);
+    user_controlbridge_log("u16Delay:%x",psMessage->u16Delay);
+    if(psMessage->u8SrcAddrMode ==0x03)
+        user_controlbridge_log("uSrcAddress:%x",psMessage->uSrcAddress.u64Addr);
+    else
+        user_controlbridge_log("uSrcAddress:%x",psMessage->uSrcAddress.u16Addr);
+
+    //update device status(may not alive)
+    //find the node
+    uint8_t node_index=0xFF;
+    uint16_t nodeAliveStatus = 0xFFFF;
+    ePDM_FindOneNode(psMessage->uSrcAddress.u16Addr,&node_index);
+    //update the node status
+    if(node_index!=0xFF)
+    {
+        ePDM_GetNodeAliveStatus(&nodeAliveStatus);
+        if((1<<node_index) & nodeAliveStatus)	//if node is offline
+            ePDM_UpdateNodeAliveStatus((~(1<<node_index)) & nodeAliveStatus);
+    }else
+    {
+		user_controlbridge_log("not find device");
+	}
+
+    //1.判断报警状态
+    //2.发送报警信息
+    vZCB_SendZoneStatusChangeNotify(NULL, psMessage->u8Endpoint, psMessage->u16ClusterID, psMessage->u16ZoneStatus, psMessage->u8ZoneId);
+
+}
+
+
+/****************************************************************************
+* Function	: eZCB_IASZoneEnrollResponse
+* Description	: Send IAS Zone Enroll Response
+* Input Para	:
+* Output Para	:
+* Return Value:
+****************************************************************************/
+teZcbStatus eZCB_IASZoneEnrollResponse(uint8_t u8TargetAddressMode,uint16_t u16TargetAddress,uint8_t u8SourceEndpoint,uint8_t u8DestinationEndpoint,uint8_t u8EnrollResponseCode,uint8_t u8ZoneID)
+{
+    teZcbStatus eStatus;
+    uint8_t u8SequenceNo;
+#pragma pack(1)
+    struct
+    {
+        uint8_t     u8TargetAddressMode;
+        uint16_t    u16TargetAddress;
+        uint8_t     u8SourceEndpoint;
+        uint8_t     u8DestinationEndpoint;
+        uint8_t 	u8EnrollResponseCode;
+        uint8_t     u8ZoneID;
+    } sIASZoneEnrollResponse;
+#pragma pack()
+
+    sIASZoneEnrollResponse.u8TargetAddressMode = u8TargetAddressMode;
+    sIASZoneEnrollResponse.u16TargetAddress = htons(u16TargetAddress);
+    sIASZoneEnrollResponse.u8SourceEndpoint = u8SourceEndpoint;
+    sIASZoneEnrollResponse.u8DestinationEndpoint = u8DestinationEndpoint;
+    sIASZoneEnrollResponse.u8EnrollResponseCode = u8EnrollResponseCode;
+    sIASZoneEnrollResponse.u8ZoneID = u8ZoneID;
+
+    if ((eStatus = eSL_SendMessage(E_SL_MSG_SEND_IAS_ZONE_ENROLL_RSP, sizeof(sIASZoneEnrollResponse), &sIASZoneEnrollResponse, &u8SequenceNo)) != E_ZCB_OK)
+    {
+        user_controlbridge_log("Set Device Type Err!");
+    }
+
+    return eZCB_GetDefaultResponse(u8SequenceNo);
+}
+
+
 
 /****************************************************************************
 * Function	: eZCB_ConfigureControlBridge
@@ -3120,57 +3263,62 @@ teZcbStatus eZCB_ConfigureControlBridge(void)
     /* Set up configuration */
     switch (eStartMode)
     {
-    case(E_START_COORDINATOR):
-        user_controlbridge_log("Starting control bridge as HA coordinator");
-        eZCB_SetDeviceType(E_MODE_COORDINATOR);		//设置设备类型为 coordinator
-        mico_thread_msleep(CONFIGURATION_INTERVAL);
+        case(E_START_COORDINATOR):
+            //user_controlbridge_log("Starting control bridge as HA coordinator");
+            //mico_thread_msleep(CONFIGURATION_INTERVAL);
 
-        eZCB_SetChannelMask(eChannel);				//设置信道
-        mico_thread_msleep(CONFIGURATION_INTERVAL);
+            //设置设备类型为 coordinator
+            if(eZCB_SetDeviceType(E_MODE_COORDINATOR) != E_ZCB_OK)
+                user_controlbridge_log("Set Device Type Err!");
+            mico_thread_msleep(CONFIGURATION_INTERVAL);
 
-        eZCB_SetExtendedPANID(u64PanID);			//设置扩展 PAN ID
-        mico_thread_msleep(CONFIGURATION_INTERVAL);
+            eZCB_SetChannelMask(eChannel);				//设置信道
+            mico_thread_msleep(CONFIGURATION_INTERVAL);
 
-        eZCB_StartNetwork();						//启动网络
-        mico_thread_msleep(500);
+            eZCB_SetExtendedPANID(u64PanID);			//设置扩展 PAN ID
+            mico_thread_msleep(CONFIGURATION_INTERVAL);
 
-        eZCB_SetPermitJoining(180);					//设置允许加入网络180s
-        mico_thread_msleep(CONFIGURATION_INTERVAL);
-        break;
+            eZCB_StartNetwork();						//启动网络
+            mico_thread_msleep(500);
 
-    case (E_START_ROUTER):
-        user_controlbridge_log("Starting control bridge as HA compatible router");
-        eZCB_SetDeviceType(E_MODE_HA_COMPATABILITY);
-        mico_thread_msleep(CONFIGURATION_INTERVAL);
+            eZCB_SetPermitJoining(180);					//设置允许加入网络180s
+            mico_thread_msleep(CONFIGURATION_INTERVAL);
+            user_controlbridge_log("Configure Done!");
+            break;
 
-        eZCB_SetChannelMask(eChannel);
-        mico_thread_msleep(CONFIGURATION_INTERVAL);
+        case (E_START_ROUTER):
+            user_controlbridge_log("Starting control bridge as HA compatible router");
+            eZCB_SetDeviceType(E_MODE_HA_COMPATABILITY);
+            mico_thread_msleep(CONFIGURATION_INTERVAL);
 
-        eZCB_SetExtendedPANID(u64PanID);
-        mico_thread_msleep(CONFIGURATION_INTERVAL);
+            eZCB_SetChannelMask(eChannel);
+            mico_thread_msleep(CONFIGURATION_INTERVAL);
 
-        eZCB_StartNetwork();
-        mico_thread_msleep(CONFIGURATION_INTERVAL);
-        break;
+            eZCB_SetExtendedPANID(u64PanID);
+            mico_thread_msleep(CONFIGURATION_INTERVAL);
 
-    case (E_START_TOUCHLINK):
-        user_controlbridge_log("Starting control bridge as ZLL router");
-        eZCB_SetDeviceType(E_MODE_ROUTER);
-        mico_thread_msleep(CONFIGURATION_INTERVAL);
+            eZCB_StartNetwork();
+            mico_thread_msleep(CONFIGURATION_INTERVAL);
+            break;
 
-        eZCB_SetChannelMask(eChannel);
-        mico_thread_msleep(CONFIGURATION_INTERVAL);
+        case (E_START_TOUCHLINK):
+            user_controlbridge_log("Starting control bridge as ZLL router");
+            eZCB_SetDeviceType(E_MODE_ROUTER);
+            mico_thread_msleep(CONFIGURATION_INTERVAL);
 
-        eZCB_SetExtendedPANID(u64PanID);
-        mico_thread_msleep(CONFIGURATION_INTERVAL);
+            eZCB_SetChannelMask(eChannel);
+            mico_thread_msleep(CONFIGURATION_INTERVAL);
 
-        eZCB_StartNetwork();
-        mico_thread_msleep(CONFIGURATION_INTERVAL);
-        break;
+            eZCB_SetExtendedPANID(u64PanID);
+            mico_thread_msleep(CONFIGURATION_INTERVAL);
 
-    default:
-        user_controlbridge_log("Unknown module mode\n");
-        return E_ZCB_ERROR;
+            eZCB_StartNetwork();
+            mico_thread_msleep(CONFIGURATION_INTERVAL);
+            break;
+
+        default:
+            user_controlbridge_log("Unknown module mode\n");
+            return E_ZCB_ERROR;
     }
 
     return E_ZCB_OK;
@@ -3189,331 +3337,259 @@ teZcbStatus eZCB_HandleZcbEvent(tsZcbEvent *psEvent)
 
     switch (psEvent->eEvent)
     {
-    case (E_ZCB_EVENT_NETWORK_JOINED):
-    case (E_ZCB_EVENT_NETWORK_FORMED):		//加入网络 or 组建网络
-    {
-        tsZCB_Node *psZcbNode = psZCB_FindNodeControlBridge();	//获得 ControlBridge 节点
-        //tsNode *psJIPNode;
-
-        if (!psZcbNode)
-        {
-            user_controlbridge_log("Could not find control bridge!\n");
-            break;
-        }
-
-        //psJIPNode = psBR_FindJIPNode(psZcbNode);
-        //if (psJIPNode)
-        //{
-        //    user_controlbridge_log("Node 0x%04X is already in the JIP network\n", psZcbNode->u16ShortAddress);
-        //    mico_rtos_unlock_mutex(psJIPNode);
-        //    mico_rtos_unlock_mutex(&psZcbNode->sLock);
-        //    break;
-        //}
-
-        // Node joined event
-        //eBR_NodeJoined(psZcbNode);
-
-        user_controlbridge_log("Network started\n");
-
-        mico_rtos_unlock_mutex(&psZcbNode->sLock);
-        break;
-    }
-
-    case (E_ZCB_EVENT_DEVICE_ANNOUNCE):		//device  announce
-    {
-        tsZCB_Node *psZcbNode = psZCB_FindNodeShortAddress(psEvent->uData.sDeviceAnnounce.u16ShortAddress);
-        int i;
-
-        if (!psZcbNode)
-        {
-            user_controlbridge_log("Could not find new node!\n");
-            break;
-        }
-
-
-        if (psZcbNode->u32NumEndpoints > 0)
-        {
-            user_controlbridge_log("Endpoints of device 0x%04X already known\n", psZcbNode->u16ShortAddress);
-
-            /* Re-raise event as a device match if we already have the endpoints,
-             * so we can make sure that a JIP device exists for it.
-             */
-            psEvent->eEvent = E_ZCB_EVENT_DEVICE_MATCH;
-            psEvent->uData.sDeviceMatch.u16ShortAddress = psEvent->uData.sDeviceAnnounce.u16ShortAddress;
-
-            teZcbStatus status ;
-            status = eZCB_HandleZcbEvent(psEvent);
-            if(status != E_ZCB_OK)
-                user_controlbridge_log("Handle Zcb Event err");
-
-            //if (eUtils_QueueQueue(&sZcbEventQueue, psEvent) == E_UTILS_OK)
-            //{
-            //    psEvent = NULL; /* Prevent event being free'd */
-            //}
-            mico_rtos_unlock_mutex(&psZcbNode->sLock);
-            break;
-        }
-
-        user_controlbridge_log("New device 0x%04X", psZcbNode->u16ShortAddress);
-
-        /* Initiate discovery of device */
-
-        //uint16_t au16Profile[] = { E_ZB_PROFILEID_HA, E_ZB_PROFILEID_ZLL };
-        uint16_t au16Profile[] = { E_ZB_PROFILEID_HA};
-        //uint16_t au16Cluster[] = { E_ZB_CLUSTERID_ONOFF, E_ZB_CLUSTERID_THERMOSTAT  };
-        uint16_t au16Cluster[] = { E_ZB_CLUSTERID_ONOFF};
-
-        for (i = 0 ; i < (sizeof(au16Profile)/sizeof(uint16_t)); i++)
-        {
-            /* Send match descriptor request */
-            if (eZCB_MatchDescriptorRequest(psZcbNode->u16ShortAddress, au16Profile[i],
-                                            sizeof(au16Cluster) / sizeof(uint16_t), au16Cluster,
-                                            0, NULL, NULL) != E_ZCB_OK)
+        case (E_ZCB_EVENT_NETWORK_JOINED):
+        case (E_ZCB_EVENT_NETWORK_FORMED):		//加入网络 or 组建网络
             {
-                user_controlbridge_log("Error sending match descriptor request");
-            }
-        }
-        mico_rtos_unlock_mutex(&psZcbNode->sLock);
+                tsZCB_Node *psZcbNode = psZCB_FindNodeControlBridge();	//获得 ControlBridge 节点
+                //tsNode *psJIPNode;
 
-        /* Slow down match descriptor requests */
-        mico_thread_sleep(1);
-        break;
-    }
-
-    case (E_ZCB_EVENT_DEVICE_LEFT):
-    {
-        tsZCB_Node *psZcbNode = psZCB_FindNodeIEEEAddress(psEvent->uData.sDeviceLeft.u64IEEEAddress);
-
-        if (!psZcbNode)
-        {
-            user_controlbridge_log("Could not find leaving node!\n");
-            break;
-        }
-
-        if (!psEvent->uData.sDeviceLeft.bRejoin)
-        {
-            // Device is not going to rejoin so remove it immediately.
-            // If it fails to rejoin it will be aged out via the usual mechanism.
-            //if (eBR_NodeLeft(psZcbNode) != E_BR_OK)
-            //{
-            //    user_controlbridge_log("Error removing node from JIP\n");
-            //}
-
-            if (eZCB_RemoveNode(psZcbNode) != E_ZCB_OK)
-            {
-                user_controlbridge_log("Error removing node from ZCB\n");
-            }
-        }
-        break;
-    }
-
-    case (E_ZCB_EVENT_DEVICE_MATCH):
-    {
-        int i;
-        teZcbStatus eStatus;
-        tsZCB_Node *psZcbNode = psZCB_FindNodeShortAddress(psEvent->uData.sDeviceMatch.u16ShortAddress);
-        //tsNode *psJIPNode;
-
-        if (!psZcbNode)
-        {
-            user_controlbridge_log("Could not find new node!\n");
-            break;
-        }
-
-
-        //psJIPNode = psBR_FindJIPNode(psZcbNode);
-        //if (psJIPNode)
-        //{
-        //    user_controlbridge_log("Node 0x%04X is already in the JIP network\n", psZcbNode->u16ShortAddress);
-        //    eJIP_UnlockNode(psJIPNode);
-        //}
-        //else
-        {
-            if (!psZcbNode->u64IEEEAddress)
-            {
-                user_controlbridge_log("New node 0x%04X, requesting IEEE address\n", psZcbNode->u16ShortAddress);
-                if ((eZCB_NodeDescriptorRequest(psZcbNode) != E_ZCB_OK) || (eZCB_IEEEAddressRequest(psZcbNode) != E_ZCB_OK))
+                if (!psZcbNode)
                 {
-#if 0
-                    if (iBR_DeviceTimedOut(psZcbNode))
-                    {
-                        user_controlbridge_log("Zigbee node 0x%04X removed from network (no response to IEEE Address).\n", psZcbNode->u16ShortAddress);
-                        if (eZCB_RemoveNode(psZcbNode) != E_ZCB_OK)
-                        {
-                            user_controlbridge_log("Error removing node from ZCB\n");
-                        }
-                    }
-                    else
-                    {
-                        user_controlbridge_log("Error retrieving IEEE Address of node 0x%04X - requeue\n", psZcbNode->u16ShortAddress);
-                        if (eUtils_QueueQueue(&sZcbEventQueue, psEvent) == E_UTILS_OK)
-                        {
-                            eUtils_LockUnlock(&psZcbNode->sLock);
-                            psEvent = NULL; /* Prevent event being free'd */
-                        }
-                        else
-                        {
-                            /* Failed to re-queue the event - discard node. */
-                            user_controlbridge_log("Event queue is full - removing node\n");
-                            if (eZCB_RemoveNode(psZcbNode) != E_ZCB_OK)
-                            {
-                                user_controlbridge_log("Error removing node from ZCB\n");
-                            }
-                        }
-                    }
-#endif
+                    user_controlbridge_log("Could not find control bridge!");
                     break;
                 }
+                user_controlbridge_log("Network started");
+
+                mico_rtos_unlock_mutex(&psZcbNode->sLock);
+                break;
             }
 
-            user_controlbridge_log("New device, short address 0x%04X, matching requested clusters", psZcbNode->u16ShortAddress);
-
-            for (i = 0; i < psZcbNode->u32NumEndpoints; i++)
+        case (E_ZCB_EVENT_DEVICE_ANNOUNCE):		//device  announce
             {
-                if (psZcbNode->pasEndpoints[i].u16ProfileID == 0)
-                {
+                //find and lock the node
+                tsZCB_Node *psZcbNode = psZCB_FindNodeShortAddress(psEvent->uData.sDeviceAnnounce.u16ShortAddress);
+                int i;
 
-                    user_controlbridge_log("Requesting new endpoint simple descriptor");
-                    if (eZCB_SimpleDescriptorRequest(psZcbNode, psZcbNode->pasEndpoints[i].u8Endpoint) != E_ZCB_OK)
-                    {
+                if (!psZcbNode)
+                {
+                    user_controlbridge_log("Could not find new node!");
+                    break;
+                }
+
+
+                if (psZcbNode->u32NumEndpoints > 0)		//the node is not new=================待处理
+                {
 #if 0
-                        if (iBR_DeviceTimedOut(psZcbNode))
-                        {
-                            user_controlbridge_log("Zigbee node 0x%04X removed from network (No response to simple descriptor request).\n", psZcbNode->u16ShortAddress);
-                            if (eZCB_RemoveNode(psZcbNode) != E_ZCB_OK)
-                            {
-                                user_controlbridge_log("Error removing node from ZCB\n");
-                            }
-                        }
-                        else
-                        {
-                            user_controlbridge_log("Failed to read endpoint simple descriptor - requeue\n");
-                            if (eUtils_QueueQueue(&sZcbEventQueue, psEvent) == E_UTILS_OK)
-                            {
-                                eUtils_LockUnlock(&psZcbNode->sLock);
-                                psEvent = NULL; /* Prevent event being free'd */
-                            }
-                            else
-                            {
-                                /* Failed to re-queue the event - discard node. */
-                                user_controlbridge_log("Event queue is full - removing node\n");
-                                if (eZCB_RemoveNode(psZcbNode) != E_ZCB_OK)
-                                {
-                                    user_controlbridge_log("Error removing node from ZCB\n");
-                                }
-                            }
-                        }
+                    user_controlbridge_log("Endpoints of device 0x%04X already known", psZcbNode->u16ShortAddress);
+
+                    /* Re-raise event as a device match if we already have the endpoints,
+                     * so we can make sure that a JIP device exists for it.
+                     */
+                    psEvent->eEvent = E_ZCB_EVENT_DEVICE_MATCH;
+                    psEvent->uData.sDeviceMatch.u16ShortAddress = psEvent->uData.sDeviceAnnounce.u16ShortAddress;
+
+                    mico_rtos_unlock_mutex(&psZcbNode->sLock);		//add  20151110 sven
+
+                    teZcbStatus status ;
+                    status = eZCB_HandleZcbEvent(psEvent);
+                    if(status != E_ZCB_OK)
+                        user_controlbridge_log("Handle Zcb Event err");
+                    else
+                        user_controlbridge_log("Handle Zcb Event ok");
 #endif
-                        /* Get out of the loop and case without adding groups or joining to BR */
-                        goto E_ZCB_EVENT_DEVICE_MATCH_done;
+
+                    mico_rtos_unlock_mutex(&psZcbNode->sLock);
+                    break;
+                }
+
+                user_controlbridge_log("New device 0x%04X", psZcbNode->u16ShortAddress);
+
+                /* Initiate discovery of device */
+
+                //uint16_t au16Profile[] = { E_ZB_PROFILEID_HA, E_ZB_PROFILEID_ZLL };
+                uint16_t au16Profile[] = { E_ZB_PROFILEID_HA};
+                //uint16_t au16Cluster[] = { E_ZB_CLUSTERID_ONOFF, E_ZB_CLUSTERID_THERMOSTAT  };
+                uint16_t au16Cluster[] = { E_ZB_CLUSTERID_BASIC};
+
+                for (i = 0 ; i < (sizeof(au16Profile)/sizeof(uint16_t)); i++)
+                {
+                    /* Send match descriptor request */
+                    if (eZCB_MatchDescriptorRequest(psZcbNode->u16ShortAddress, au16Profile[i],
+                                                    sizeof(au16Cluster) / sizeof(uint16_t), au16Cluster,
+                                                    0, NULL, NULL) != E_ZCB_OK)
+                    {
+                        user_controlbridge_log("Error sending match descriptor request");
                     }
                 }
+                mico_rtos_unlock_mutex(&psZcbNode->sLock);
+
+                /* Slow down match descriptor requests */
+                mico_thread_sleep(1);
+                break;
             }
 
-
-            /* Set up bulb groups */
-            eStatus = eZCB_AddGroupMembership(psZcbNode, 0xf00f);
-            if ((eStatus != E_ZCB_OK) &&
-                    (eStatus != E_ZCB_DUPLICATE_EXISTS) &&
-                    (eStatus != E_ZCB_UNKNOWN_CLUSTER))
+        case (E_ZCB_EVENT_DEVICE_LEFT):		//device left
             {
-                user_controlbridge_log("add Group err");
-#if 0
-                if (iBR_DeviceTimedOut(psZcbNode))
+                tsZCB_Node *psZcbNode = psZCB_FindNodeIEEEAddress(psEvent->uData.sDeviceLeft.u64IEEEAddress);
+
+                if (!psZcbNode)
                 {
-                    user_controlbridge_log("Zigbee node 0x%04X removed from network (No response to add group request).\n", psZcbNode->u16ShortAddress);
+                    user_controlbridge_log("Could not find leaving node!");
+                    break;
+                }
+
+                if (!psEvent->uData.sDeviceLeft.bRejoin)
+                {
                     if (eZCB_RemoveNode(psZcbNode) != E_ZCB_OK)
                     {
                         user_controlbridge_log("Error removing node from ZCB\n");
                     }
                 }
-                else
+                break;
+            }
+
+        case (E_ZCB_EVENT_DEVICE_MATCH):
+            {
+                int i;
+                teZcbStatus eStatus;
+                tsZCB_Node *psZcbNode = psZCB_FindNodeShortAddress(psEvent->uData.sDeviceMatch.u16ShortAddress);
+
+                if (!psZcbNode)
                 {
-                    user_controlbridge_log("Failed to add group - requeue\n");
-                    /* requeue event */
-                    if (eUtils_QueueQueue(&sZcbEventQueue, psEvent) == E_UTILS_OK)
+                    user_controlbridge_log("Could not find new node!\n");
+                    break;
+                }
+                if (!psZcbNode->u64IEEEAddress)
+                {
+                    user_controlbridge_log("New node 0x%04X, requesting IEEE address\n", psZcbNode->u16ShortAddress);
+                    if ((eZCB_NodeDescriptorRequest(psZcbNode) != E_ZCB_OK) || (eZCB_IEEEAddressRequest(psZcbNode) != E_ZCB_OK))
                     {
-                        eUtils_LockUnlock(&psZcbNode->sLock);
-                        psEvent = NULL; /* Prevent event being free'd */
+                        break;
                     }
-                    else
+                }
+
+                user_controlbridge_log("New device, short address 0x%04X, matching requested clusters", psZcbNode->u16ShortAddress);
+
+                for (i = 0; i < psZcbNode->u32NumEndpoints; i++)
+                {
+                    if (psZcbNode->pasEndpoints[i].u16ProfileID == 0)
                     {
-                        /* Failed to re-queue the event - discard node. */
-                        user_controlbridge_log("Event queue is full - removing node\n");
-                        if (eZCB_RemoveNode(psZcbNode) != E_ZCB_OK)
+
+                        user_controlbridge_log("Requesting new endpoint simple descriptor");
+                        if (eZCB_SimpleDescriptorRequest(psZcbNode, psZcbNode->pasEndpoints[i].u8Endpoint) != E_ZCB_OK)
                         {
-                            user_controlbridge_log("Error removing node from ZCB\n");
+                            /* Get out of the loop and case without adding groups or joining to BR */
+                            goto E_ZCB_EVENT_DEVICE_MATCH_done;
                         }
                     }
                 }
-#endif
-                /* Get out of the loop and case without adding groups or joining to BR */
-                goto E_ZCB_EVENT_DEVICE_MATCH_done;
-            }
-        }
 
-        // Node joined event.
-        //if (!psJIPNode)
-        //{
-        //    user_controlbridge_log("Adding node 0x%04X to border router\n", psZcbNode->u16ShortAddress);
-        //    eBR_NodeJoined(psZcbNode);
-        //}
-        mico_rtos_unlock_mutex(&psZcbNode->sLock);
-E_ZCB_EVENT_DEVICE_MATCH_done:
-        break;
-    }
 
-    case (E_ZCB_EVENT_ATTRIBUTE_REPORT):
-    {
-        tsZCB_Node *psZcbNode = psZCB_FindNodeShortAddress(psEvent->uData.sAttributeReport.u16ShortAddress);
-        //tsNode *psJIPNode;
-
-        if (!psZcbNode)
-        {
-            user_controlbridge_log("Could not find node matching attribute report source 0x%04X!", psEvent->uData.sAttributeReport.u16ShortAddress);
-            break;
-        }
 #if 0
-        psJIPNode = psBR_FindJIPNode(psZcbNode);
-        if (!psJIPNode)
-        {
-            user_controlbridge_log("No JIP device for Zigbee node 0x%04X\n", psZcbNode->u16ShortAddress);
-        }
-        else
-        {
-            tsDeviceIDMap *psDeviceIDMap = asDeviceIDMap;
-            while (((psDeviceIDMap->u16ZigbeeDeviceID != 0) &&
-                    (psDeviceIDMap->u32JIPDeviceID != 0) &&
-                    (psDeviceIDMap->prInitaliseRoutine != NULL)))
-            {
-                if (psDeviceIDMap->u16ZigbeeDeviceID == psZcbNode->u16DeviceID)
+                /* Set up bulb groups */
+                eStatus = eZCB_AddGroupMembership(psZcbNode, 0xf00f);
+                if ((eStatus != E_ZCB_OK) &&
+                        (eStatus != E_ZCB_DUPLICATE_EXISTS) &&
+                        (eStatus != E_ZCB_UNKNOWN_CLUSTER))
                 {
-                    user_controlbridge_log("Found JIP device type 0x%08X for ZB Device type 0x%04X\n",
-                                           psDeviceIDMap->u32JIPDeviceID, psDeviceIDMap->u16ZigbeeDeviceID);
-                    if (psDeviceIDMap->prAttributeUpdateRoutine)
+                    user_controlbridge_log("add Group err");
+                    /* Get out of the loop and case without adding groups or joining to BR */
+                    goto E_ZCB_EVENT_DEVICE_MATCH_done;
+                }
+#endif
+                mico_rtos_unlock_mutex(&psZcbNode->sLock);
+
+                uint16_t u16CustomData = 0xFF;
+                if(psZcbNode->u16DeviceID == 0x402)				//门磁 E_CLD_IASZONE_TYPE_CONTACT_SWITCH 0x0015 红外 E_CLD_IASZONE_TYPE_VIBRATION_MOVEMENT_SENSOR 0x002D
+                {
+                    uint16_t u16ZoneType;
+                    uint8_t  u8ZoneID;
+                    //1.读取设备的 zoneID
+                    if ((eStatus = eZCB_ReadAttributeRequest(psZcbNode, E_ZB_CLUSTERID_IAS_ZONE, 0, 0, 0, E_ZB_ATTRIBUTEID_ZONE_ZONETYPE, &u16ZoneType)) != E_ZCB_OK)
                     {
-                        user_controlbridge_log("Calling JIP attribute update routine\n");
-                        psDeviceIDMap->prAttributeUpdateRoutine(psZcbNode, psJIPNode,
-                                                                psEvent->uData.sAttributeReport.u16ClusterID,
-                                                                psEvent->uData.sAttributeReport.u16AttributeID,
-                                                                psEvent->uData.sAttributeReport.eType,
-                                                                psEvent->uData.sAttributeReport.uData);
+                        user_controlbridge_log("read attr err");
+                    }
+                    else
+                    {
+                        //2.发送 enroll response
+                        user_controlbridge_log("send enroll response");
+                        u16CustomData = u16ZoneType;
+                        switch(u16ZoneType)
+                        {
+                            case 0x0015:
+                                u8ZoneID = 0x01;
+                                break;
+                            case 0x002D:
+                                u8ZoneID = 0x02;
+                                break;
+                            default:
+                                user_controlbridge_log("other zone type");
+                                break;
+                        }
+                        eStatus = eZCB_IASZoneEnrollResponse(E_ZB_ADDRESS_MODE_SHORT,psZcbNode->u16ShortAddress,1,1,0x00,u8ZoneID);
+                        if(eStatus == E_ZCB_COMMS_FAILED)
+                            user_controlbridge_log("send enroll response err");
                     }
                 }
+                else
+                {
 
-                /* Next device map */
-                psDeviceIDMap++;
+                }
+
+                DBG_PrintNode(psZcbNode);
+
+                mico_rtos_lock_mutex(&psZcbNode->sLock);
+                if (ePDM_SaveOneNode(psZcbNode,u16CustomData) != E_ZCB_OK)
+                {
+                    user_controlbridge_log("Save Node Err");
+                }
+                mico_rtos_unlock_mutex(&psZcbNode->sLock);
+                break;
+E_ZCB_EVENT_DEVICE_MATCH_done:
+                mico_rtos_unlock_mutex(&psZcbNode->sLock);
+                user_controlbridge_log("Device Match Err");
+                break;
             }
-            eJIP_UnlockNode(psJIPNode);
-        }
-#endif
-        mico_rtos_unlock_mutex(&psZcbNode->sLock);
-        break;
-    }
 
-    default:
-        user_controlbridge_log("Unhandled event code\n");
-        break;
+        case (E_ZCB_EVENT_ATTRIBUTE_REPORT):
+            {
+                //tsZCB_Node *psZcbNode = psZCB_FindNodeShortAddress(psEvent->uData.sAttributeReport.u16ShortAddress);
+
+                //if (!psZcbNode)
+                //{
+                //    user_controlbridge_log("Could not find node matching attribute report source 0x%04X!", psEvent->uData.sAttributeReport.u16ShortAddress);
+                //    break;
+                //}
+
+                user_controlbridge_log("Attribute Report:");
+                user_controlbridge_log("Short Address:%x",psEvent->uData.sAttributeReport.u16ShortAddress);
+                user_controlbridge_log("Endpoint:%d",psEvent->uData.sAttributeReport.u8Endpoint);
+                user_controlbridge_log("Cluster ID:%d",psEvent->uData.sAttributeReport.u16ClusterID);
+                user_controlbridge_log("Attribute ID:%d",psEvent->uData.sAttributeReport.u16AttributeID);
+                user_controlbridge_log("Attribute Type:%d",psEvent->uData.sAttributeReport.eType);
+                user_controlbridge_log("Attribute Date:%d",psEvent->uData.sAttributeReport.uData.u8Data);
+                /*
+                struct
+                {
+                    uint16_t                u16ShortAddress;
+                    uint8_t                 u8Endpoint;
+                    uint16_t                u16ClusterID;
+                    uint16_t                u16AttributeID;
+                    teZCL_ZCLAttributeType  eType;
+                    tuZcbAttributeData      uData;
+                } sAttributeReport;
+                */
+                //save the report date
+                eZCB_UpdateAttributeReport(psEvent->uData.sAttributeReport.u16ShortAddress,psEvent->uData.sAttributeReport.u8Endpoint,psEvent->uData.sAttributeReport.u16ClusterID,psEvent->uData.sAttributeReport.u16AttributeID,psEvent->uData.sAttributeReport.eType,psEvent->uData.sAttributeReport.uData);
+
+                //find the node
+                uint8_t node_index=0xFF;
+                uint16_t nodeAliveStatus = 0xFFFF;
+                ePDM_FindOneNode(psEvent->uData.sAttributeReport.u16ShortAddress,&node_index);
+                //update the node status
+                if(node_index!=0xFF)
+                {
+                    ePDM_GetNodeAliveStatus(&nodeAliveStatus);
+                    if((1<<node_index) & nodeAliveStatus)	//if node is offline
+                        ePDM_UpdateNodeAliveStatus((~(1<<node_index)) & nodeAliveStatus);
+                }
+                //mico_rtos_unlock_mutex(&psZcbNode->sLock);
+                break;
+            }
+
+        default:
+            user_controlbridge_log("Unhandled event code\n");
+            break;
     }
     if(psEvent != NULL)
         free(psEvent);

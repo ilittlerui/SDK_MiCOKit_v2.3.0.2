@@ -69,6 +69,7 @@ int mico_debug_enabled = 1;
 int mico_debug_enabled = 0;
 #endif
 
+
 #ifdef SDIO_1_BIT
 int sdio_1_bit_mode = 1;
 #else

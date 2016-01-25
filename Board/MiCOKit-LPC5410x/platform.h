@@ -53,37 +53,41 @@ extern "C"
 typedef enum
 {
     NXP_GPIO_0_27,
-	NXP_GPIO_0_28,
-	NXP_GPIO_0_29,
-	NXP_GPIO_0_30,
-	NXP_GPIO_0_20,
+    NXP_GPIO_0_28,
+    NXP_GPIO_0_29,
+    NXP_GPIO_0_30,
+    NXP_GPIO_0_20,
 
-	NXP_GPIO_1_12,
-	NXP_GPIO_1_13,
-	NXP_GPIO_0_7 ,
-	NXP_GPIO_1_15,
-	NXP_GPIO_1_14,
-	NXP_GPIO_0_10,
-	NXP_GPIO_0_5 ,
-	NXP_GPIO_0_6 ,
+    NXP_GPIO_1_12,
+    NXP_GPIO_1_13,
+    NXP_GPIO_0_7 ,
+    NXP_GPIO_1_15,
+    NXP_GPIO_1_14,
+    NXP_GPIO_0_10,
+    NXP_GPIO_0_5 ,
+    NXP_GPIO_0_6 ,
 
-	NXP_GPIO_0_19,
-	NXP_GPIO_0_18,
-	NXP_GPIO_0_15,
-	NXP_GPIO_0_12,
-	NXP_GPIO_0_13,
-	NXP_GPIO_0_11,
-	NXP_GPIO_0_24,
-	NXP_GPIO_0_23,
+    NXP_GPIO_0_19,
+    NXP_GPIO_0_18,
+    NXP_GPIO_0_15,
+    NXP_GPIO_0_12,
+    NXP_GPIO_0_13,
+    NXP_GPIO_0_11,
+    NXP_GPIO_0_24,
+    NXP_GPIO_0_23,
 
-	NXP_GPIO_1_0,
-	NXP_GPIO_1_1,
-	NXP_GPIO_1_2,
-	NXP_GPIO_1_3,
-	NXP_GPIO_1_4,
-	NXP_GPIO_1_5,
+    NXP_GPIO_1_0,
+    NXP_GPIO_1_1,
+    NXP_GPIO_1_2,
+    NXP_GPIO_1_3,
+    NXP_GPIO_1_4,
+    NXP_GPIO_1_5,
 
-	FLASH_PIN_SPI_CS,
+    FLASH_PIN_SPI_CS,
+    
+    
+    
+    
     MICO_GPIO_MAX, /* Denotes the total number of GPIO port aliases. Not a valid GPIO alias */
     MICO_GPIO_NONE,
 } mico_gpio_t;
@@ -148,15 +152,15 @@ typedef enum
 
 typedef enum
 {
-  MICO_FLASH_EMBEDDED,
-  MICO_FLASH_SPI,
-  MICO_FLASH_MAX,
-  MICO_FLASH_NONE,
+    MICO_FLASH_EMBEDDED,
+    MICO_FLASH_SPI,
+    MICO_FLASH_MAX,
+    MICO_FLASH_NONE,
 } mico_flash_t;
 
 typedef enum
 {
-  MICO_PARTITION_USER_MAX
+    MICO_PARTITION_USER_MAX
 } mico_user_partition_t;
 
 #define USE_MICO_SPI_FLASH
@@ -166,7 +170,7 @@ typedef enum
 
 #ifdef BOOTLOADER
 #define STDIO_UART       MICO_UART_0
-#define STDIO_UART_BAUDRATE (921600)
+#define STDIO_UART_BAUDRATE (115200)
 #else
 #define STDIO_UART       MICO_UART_0
 #define STDIO_UART_BAUDRATE (115200)
@@ -215,7 +219,11 @@ typedef enum
 #define Arduino_SPI         (MICO_SPI_0)
 #define Arduino_UART        (MICO_UART_1)
 
-#define USE_MiCOKit_EXT
+//#define USE_MiCOKit_EXT
+//#undef USE_MiCOKit_EXT
+
+#define DC_MOTOR            MICO_GPIO_NONE
+
 #define USE_RGB_LED_DRIVER_P9813
 
 #ifdef USE_MiCOKit_EXT
@@ -227,4 +235,3 @@ typedef enum
 #ifdef __cplusplus
 } /*extern "C" */
 #endif
-

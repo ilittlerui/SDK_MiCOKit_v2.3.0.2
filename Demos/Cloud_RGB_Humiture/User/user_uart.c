@@ -48,7 +48,6 @@ OSStatus user_uartInit(void)
   uart_config.flow_control = FLOW_CONTROL_DISABLED;
   uart_config.flags = UART_WAKEUP_DISABLE;
   ring_buffer_init  ( (ring_buffer_t *)&rx_buffer, (uint8_t *)rx_data, USER_UART_BUFFER_LENGTH );
-  
   MicoUartInitialize( USER_UART, &uart_config, (ring_buffer_t *)&rx_buffer );
   
   return kNoErr;

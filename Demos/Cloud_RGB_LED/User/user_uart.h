@@ -32,14 +32,17 @@
   #include "micokit_ext_def.h"
   #define USER_UART                     (Arduino_UART)
 #else
-  #define USER_UART                     (MICO_UART_NONE)
+  #define USER_UART                     (MICO_UART_1)
 #endif
 
 #define USER_UART_RECV_TIMEOUT              100
 #define USER_UART_ONE_PACKAGE_LENGTH        256
 #define USER_UART_BUFFER_LENGTH             256
    
-#define STACK_SIZE_USART_RECV_THREAD        0xA00
+#define STACK_SIZE_USART_RECV_THREAD        0xA00		//0xA00
+#define STACK_SIZE_ZCBMSG_HANDLE_THREAD     0xA00		
+
+#define ZCB_MAX_MESSAGE_QUEUES 3
 
 /*******************************************************************************
  * INTERFACES
@@ -49,4 +52,5 @@ OSStatus user_uartInit(void);
 OSStatus user_uartSend(unsigned char *inBuf, unsigned int inBufLen);
 uint32_t user_uartRecv(unsigned char *outBuf, unsigned int getLen);
 void uartRecv_thread(void *inContext);
+void ZCB_MessageHandle_thread(void *inContext);
 #endif  // __USER_UART_H_

@@ -144,8 +144,14 @@ typedef enum
     /* Sensing */
     E_ZB_CLUSTERID_TEMPERATURE              = 0x0402,
 
+	/* IAS*/
+	E_ZB_CLUSTERID_IAS_ZONE					= 0x0500,
+	
     /* ZLL */
     E_ZB_CLUSTERID_ZLL_COMMISIONING         = 0x1000,
+
+
+	
 } eZigbee_ClusterID;
 
 /** Enumerated type of attributes in the Basic Cluster */
@@ -257,6 +263,17 @@ typedef enum
     E_ZB_ATTRIBUTEID_TEMPERATURE_MEASURED_MAX     = 0x0002,
     E_ZB_ATTRIBUTEID_TEMPERATURE_TOLERANCE        = 0x0003,
 } eZigbee_AttributeIDTemperatureCluster;
+
+
+/** Enumerated type of attributes in the IASZone Cluster */
+typedef enum
+{
+    E_ZB_ATTRIBUTEID_ZONE_ZONESTATE         = 0x0000,
+    E_ZB_ATTRIBUTEID_ZONE_ZONETYPE      	= 0x0001,
+    E_ZB_ATTRIBUTEID_ZONE_ZONESTATUS		= 0x0002,
+    E_ZB_ATTRIBUTEID_ZONE_CIEADDRESS		= 0x0010,
+    //E_ZB_ATTRIBUTEID_ZONE_ZONEID			= 0x4002,
+} eZigbee_AttributeIDIASZoneCluster;
 
 
 /** Enumerated type of attribute data types from ZCL */

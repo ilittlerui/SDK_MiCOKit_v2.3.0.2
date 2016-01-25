@@ -1050,9 +1050,33 @@
   </configuration>
   <group>
     <name>Application</name>
-    <file>
-      <name>$PROJ_DIR$\..\..\..\..\Demos\COM.MXCHIP.BASIC\helloworld\hello_world.c</name>
-    </file>
+    <group>
+      <name>helloworld</name>
+      <file>
+        <name>$PROJ_DIR$\..\..\..\..\Demos\COM.MXCHIP.BASIC\helloworld\hello_world.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\..\..\Demos\COM.MXCHIP.BASIC\helloworld\mico_config.h</name>
+      </file>
+    </group>
+    <group>
+      <name>json</name>
+      <file>
+        <name>$PROJ_DIR$\..\..\..\..\Demos\COM.MXCHIP.BASIC\json\json_op.c</name>
+      </file>
+    </group>
+    <group>
+      <name>tcpip</name>
+      <group>
+        <name>tcp_client</name>
+        <file>
+          <name>$PROJ_DIR$\..\..\..\..\Demos\COM.MXCHIP.BASIC\tcpip\tcp_client\mico_config.h</name>
+        </file>
+        <file>
+          <name>$PROJ_DIR$\..\..\..\..\Demos\COM.MXCHIP.BASIC\tcpip\tcp_client\tcp_client.c</name>
+        </file>
+      </group>
+    </group>
   </group>
   <group>
     <name>Board</name>

@@ -15,9 +15,9 @@
  * This software is owned by NXP B.V. and/or its supplier and is protected
  * under applicable copyright laws. All rights are reserved. We grant You,
  * and any third parties, a license to use this software solely and
- * exclusively on NXP products [NXP Microcontrollers such as JN5148, JN5142, JN5139]. 
+ * exclusively on NXP products [NXP Microcontrollers such as JN5148, JN5142, JN5139].
  * You, and any third parties must reproduce the copyright and warranty notice
- * and any other legend of ownership on each copy or partial copy of the 
+ * and any other legend of ownership on each copy or partial copy of the
  * software.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
@@ -43,22 +43,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <errno.h>
-#include <time.h>
-#include <pthread.h>
-#include <sys/stat.h>
 
-#include <libdaemon/daemon.h>
-
-#include "ZigbeeControlBridge.h"
-#include "ZigbeeConstant.h"
-#include "ZigbeeZLL.h"
-#include "ZigbeeNetwork.h"
-#include "SerialLink.h"
-#include "Utils.h"
+#include "ZigBeeControlBridge.h"
+#include "ZigBeeConstant.h"
+#include "ZigBeeZLL.h"
+#include "ZigBeeNetwork.h"
+#include "ZigBeeSerialLink.h"
 
 #ifdef USE_ZEROCONF
 #include "Zeroconf.h"
@@ -69,6 +59,9 @@
 /****************************************************************************/
 
 #define DBG_ZLL 0
+
+#define user_ZigbeeZLL_log(M, ...) custom_log("ZigbeeZLL", M, ##__VA_ARGS__)
+#define user_ZigbeeZLL_log_trace() custom_log_trace("ZigbeeZLL")
 
 /****************************************************************************/
 /***        Type Definitions                                              ***/
@@ -95,13 +88,14 @@
 /***        Exported Functions                                            ***/
 /****************************************************************************/
 
-teZcbStatus eZBZLL_OnOff(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, uint8_t u8Mode)
+teZcbStatus eZBZLL_OnOff(tsZCB_Node *psZCBNode, uint8_t u8EndpointID, uint16_t u16GroupAddress, uint8_t u8Mode)
 {
     tsZCB_Node          *psControlBridge;
     tsZCB_NodeEndpoint  *psSourceEndpoint;
     tsZCB_NodeEndpoint  *psDestinationEndpoint;
     uint8_t             u8SequenceNo;
-    
+
+#pragma pack(1)
     struct
     {
         uint8_t     u8TargetAddressMode;
@@ -109,16 +103,16 @@ teZcbStatus eZBZLL_OnOff(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, uint8_
         uint8_t     u8SourceEndpoint;
         uint8_t     u8DestinationEndpoint;
         uint8_t     u8Mode;
-    } __attribute__((__packed__)) sOnOffMessage;
-    
-    DBG_vPrintf(DBG_ZLL, "On/Off (Set Mode=%d)\n", u8Mode);
-    
+    } sOnOffMessage;
+#pragma pack()
+    //user_ZigbeeZLL_log("On/Off (Set Mode=%d)", u8Mode);
+
     if (u8Mode > 2)
     {
         /* Illegal value */
         return E_ZCB_ERROR;
     }
-    
+
     psControlBridge = psZCB_FindNodeControlBridge();
     if (!psControlBridge)
     {
@@ -127,13 +121,13 @@ teZcbStatus eZBZLL_OnOff(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, uint8_
     psSourceEndpoint = psZCB_NodeFindEndpoint(psControlBridge, E_ZB_CLUSTERID_ONOFF);
     if (!psSourceEndpoint)
     {
-        DBG_vPrintf(DBG_ZLL, "Cluster ID 0x%04X not found on control bridge\n", E_ZB_CLUSTERID_ONOFF);
+        user_ZigbeeZLL_log("Cluster ID 0x%04X not found on control bridge\n", E_ZB_CLUSTERID_ONOFF);
         return E_ZCB_ERROR;
     }
 
     sOnOffMessage.u8SourceEndpoint      = psSourceEndpoint->u8Endpoint;
-    eUtils_LockUnlock(&psControlBridge->sLock);
-    
+    mico_rtos_unlock_mutex(&psControlBridge->sLock);
+
     if (psZCBNode)
     {
         if (bZCB_EnableAPSAck)
@@ -145,9 +139,16 @@ teZcbStatus eZBZLL_OnOff(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, uint8_
             sOnOffMessage.u8TargetAddressMode   = E_ZB_ADDRESS_MODE_SHORT_NO_ACK;
         }
         sOnOffMessage.u16TargetAddress      = htons(psZCBNode->u16ShortAddress);
-        
-        psDestinationEndpoint = psZCB_NodeFindEndpoint(psZCBNode, E_ZB_CLUSTERID_ONOFF);
 
+        if(u8EndpointID != 0)
+        {
+            psDestinationEndpoint = psZCB_NodeFindEndpointID(psZCBNode, u8EndpointID);
+        }
+        else
+        {
+            psDestinationEndpoint = psZCB_NodeFindEndpoint(psZCBNode, E_ZB_CLUSTERID_ONOFF);
+        }
+		
         if (psDestinationEndpoint)
         {
             sOnOffMessage.u8DestinationEndpoint = psDestinationEndpoint->u8Endpoint;
@@ -156,7 +157,7 @@ teZcbStatus eZBZLL_OnOff(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, uint8_
         {
             sOnOffMessage.u8DestinationEndpoint = ZB_DEFAULT_ENDPOINT_ZLL;
         }
-        eUtils_LockUnlock(&psZCBNode->sLock);
+        mico_rtos_unlock_mutex(&psZCBNode->sLock);
     }
     else
     {
@@ -164,14 +165,14 @@ teZcbStatus eZBZLL_OnOff(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, uint8_
         sOnOffMessage.u16TargetAddress      = htons(u16GroupAddress);
         sOnOffMessage.u8DestinationEndpoint = ZB_DEFAULT_ENDPOINT_ZLL;
     }
-    
+
     sOnOffMessage.u8Mode = u8Mode;
-    
+
     if (eSL_SendMessage(E_SL_MSG_ONOFF, sizeof(sOnOffMessage), &sOnOffMessage, &u8SequenceNo) != E_SL_OK)
     {
         return E_ZCB_COMMS_FAILED;
     }
-    
+
     if (psZCBNode)
     {
         return eZCB_GetDefaultResponse(u8SequenceNo);
@@ -187,26 +188,26 @@ teZcbStatus eZBZLL_OnOffCheck(tsZCB_Node *psZCBNode, uint8_t u8Mode)
 {
     teZcbStatus eStatus;
     uint8_t u8OnOffStatus;
-    
-    if ((eStatus = eZBZLL_OnOff(psZCBNode, 0, u8Mode)) != E_ZCB_OK)
+
+    if ((eStatus = eZBZLL_OnOff(psZCBNode, 0,0, u8Mode)) != E_ZCB_OK)
     {
         return eStatus;
     }
-    
+
     if (u8Mode < 2)
     {
         /* Can't check the staus of a toggle command */
-        
+
         /* Wait 100ms */
-        usleep(100*1000);
-        
+        mico_thread_msleep(100);
+
         if ((eStatus = eZCB_ReadAttributeRequest(psZCBNode, E_ZB_CLUSTERID_ONOFF, 0, 0, 0, E_ZB_ATTRIBUTEID_ONOFF_ONOFF, &u8OnOffStatus)) != E_ZCB_OK)
         {
             return eStatus;
         }
-        
-        DBG_vPrintf(DBG_ZLL, "On Off attribute read as: 0x%02X\n", u8OnOffStatus);
-        
+
+        user_ZigbeeZLL_log("On Off attribute read as: 0x%02X\n", u8OnOffStatus);
+
         if (u8OnOffStatus != u8Mode)
         {
             return E_ZCB_REQUEST_NOT_ACTIONED;
@@ -222,7 +223,8 @@ teZcbStatus eZBZLL_MoveToLevel(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, 
     tsZCB_NodeEndpoint  *psSourceEndpoint;
     tsZCB_NodeEndpoint  *psDestinationEndpoint;
     uint8_t             u8SequenceNo;
-    
+
+#pragma pack(1)
     struct
     {
         uint8_t     u8TargetAddressMode;
@@ -232,15 +234,15 @@ teZcbStatus eZBZLL_MoveToLevel(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, 
         uint8_t     u8OnOff;
         uint8_t     u8Level;
         uint16_t    u16TransitionTime;
-    } __attribute__((__packed__)) sLevelMessage;
-    
-    DBG_vPrintf(DBG_ZLL, "Set Level %d\n", u8Level);
-    
+    } sLevelMessage;
+#pragma pack()
+    user_ZigbeeZLL_log("Set Level %d\n", u8Level);
+
     if (u8Level > 254)
     {
         u8Level = 254;
     }
-    
+
     psControlBridge = psZCB_FindNodeControlBridge();
     if (!psControlBridge)
     {
@@ -249,12 +251,12 @@ teZcbStatus eZBZLL_MoveToLevel(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, 
     psSourceEndpoint = psZCB_NodeFindEndpoint(psControlBridge, E_ZB_CLUSTERID_LEVEL_CONTROL);
     if (!psSourceEndpoint)
     {
-        DBG_vPrintf(DBG_ZLL, "Cluster ID 0x%04X not found on control bridge\n", E_ZB_CLUSTERID_LEVEL_CONTROL);
+        user_ZigbeeZLL_log("Cluster ID 0x%04X not found on control bridge\n", E_ZB_CLUSTERID_LEVEL_CONTROL);
         return E_ZCB_ERROR;
     }
 
     sLevelMessage.u8SourceEndpoint      = psSourceEndpoint->u8Endpoint;
-    eUtils_LockUnlock(&psControlBridge->sLock);
+    mico_rtos_unlock_mutex(&psControlBridge->sLock);
 
     if (psZCBNode)
     {
@@ -267,7 +269,7 @@ teZcbStatus eZBZLL_MoveToLevel(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, 
             sLevelMessage.u8TargetAddressMode   = E_ZB_ADDRESS_MODE_SHORT_NO_ACK;
         }
         sLevelMessage.u16TargetAddress      = htons(psZCBNode->u16ShortAddress);
-        
+
         psDestinationEndpoint = psZCB_NodeFindEndpoint(psZCBNode, E_ZB_CLUSTERID_LEVEL_CONTROL);
 
         if (psDestinationEndpoint)
@@ -278,7 +280,7 @@ teZcbStatus eZBZLL_MoveToLevel(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, 
         {
             sLevelMessage.u8DestinationEndpoint = ZB_DEFAULT_ENDPOINT_ZLL;
         }
-        eUtils_LockUnlock(&psZCBNode->sLock);
+        mico_rtos_unlock_mutex(&psZCBNode->sLock);
     }
     else
     {
@@ -286,17 +288,17 @@ teZcbStatus eZBZLL_MoveToLevel(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, 
         sLevelMessage.u16TargetAddress      = htons(u16GroupAddress);
         sLevelMessage.u8DestinationEndpoint = ZB_DEFAULT_ENDPOINT_ZLL;
     }
-    
+
     sLevelMessage.u8OnOff               = u8OnOff;
     sLevelMessage.u8Level               = u8Level;
     sLevelMessage.u16TransitionTime     = htons(u16TransitionTime);
-   // sOnOffMessage.u8Gradient            = u8Gradient;
-    
+    // sOnOffMessage.u8Gradient            = u8Gradient;
+
     if (eSL_SendMessage(E_SL_MSG_MOVE_TO_LEVEL_ONOFF, sizeof(sLevelMessage), &sLevelMessage, &u8SequenceNo) != E_SL_OK)
     {
         return E_ZCB_COMMS_FAILED;
     }
-    
+
     if (psZCBNode)
     {
         return eZCB_GetDefaultResponse(u8SequenceNo);
@@ -312,41 +314,41 @@ teZcbStatus eZBZLL_MoveToLevelCheck(tsZCB_Node *psZCBNode, uint8_t u8OnOff, uint
 {
     teZcbStatus eStatus;
     uint8_t u8CurrentLevel;
-    
+
     if ((eStatus = eZCB_ReadAttributeRequest(psZCBNode, E_ZB_CLUSTERID_LEVEL_CONTROL, 0, 0, 0, E_ZB_ATTRIBUTEID_LEVEL_CURRENTLEVEL, &u8CurrentLevel)) != E_ZCB_OK)
     {
         return eStatus;
     }
-    
-    DBG_vPrintf(DBG_ZLL, "Current Level attribute read as: 0x%02X\n", u8CurrentLevel);
-    
+
+    user_ZigbeeZLL_log("Current Level attribute read as: 0x%02X\n", u8CurrentLevel);
+
     if (u8CurrentLevel == u8Level)
     {
         /* Level is already set */
         /* This is a guard for transition times that are outside of the JIP 300ms retry window */
         return E_ZCB_OK;
     }
-    
+
     if (u8Level > 254)
     {
         u8Level = 254;
     }
-    
+
     if ((eStatus = eZBZLL_MoveToLevel(psZCBNode, 0, u8OnOff, u8Level, u16TransitionTime)) != E_ZCB_OK)
     {
         return eStatus;
     }
-    
+
     /* Wait the transition time */
-    usleep(u16TransitionTime * 100000);
+    mico_thread_msleep(u16TransitionTime * 100);
 
     if ((eStatus = eZCB_ReadAttributeRequest(psZCBNode, E_ZB_CLUSTERID_LEVEL_CONTROL, 0, 0, 0, E_ZB_ATTRIBUTEID_LEVEL_CURRENTLEVEL, &u8CurrentLevel)) != E_ZCB_OK)
     {
         return eStatus;
     }
-    
-    DBG_vPrintf(DBG_ZLL, "Current Level attribute read as: 0x%02X\n", u8CurrentLevel);
-    
+
+    user_ZigbeeZLL_log("Current Level attribute read as: 0x%02X\n", u8CurrentLevel);
+
     if (u8CurrentLevel != u8Level)
     {
         return E_ZCB_REQUEST_NOT_ACTIONED;
@@ -360,7 +362,8 @@ teZcbStatus eZBZLL_MoveToHue(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, ui
     tsZCB_NodeEndpoint  *psSourceEndpoint;
     tsZCB_NodeEndpoint  *psDestinationEndpoint;
     uint8_t             u8SequenceNo;
-    
+
+#pragma pack(1)
     struct
     {
         uint8_t     u8TargetAddressMode;
@@ -370,10 +373,10 @@ teZcbStatus eZBZLL_MoveToHue(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, ui
         uint8_t     u8Hue;
         uint8_t     u8Direction;
         uint16_t    u16TransitionTime;
-    } __attribute__((__packed__)) sMoveToHueMessage;
-    
-    DBG_vPrintf(DBG_ZLL, "Set Hue %d\n", u8Hue);
-    
+    } sMoveToHueMessage;
+#pragma pack()
+    user_ZigbeeZLL_log("Set Hue %d\n", u8Hue);
+
     psControlBridge = psZCB_FindNodeControlBridge();
     if (!psControlBridge)
     {
@@ -382,12 +385,12 @@ teZcbStatus eZBZLL_MoveToHue(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, ui
     psSourceEndpoint = psZCB_NodeFindEndpoint(psControlBridge, E_ZB_CLUSTERID_COLOR_CONTROL);
     if (!psSourceEndpoint)
     {
-        DBG_vPrintf(DBG_ZLL, "Cluster ID 0x%04X not found on control bridge\n", E_ZB_CLUSTERID_COLOR_CONTROL);
+        user_ZigbeeZLL_log("Cluster ID 0x%04X not found on control bridge\n", E_ZB_CLUSTERID_COLOR_CONTROL);
         return E_ZCB_ERROR;
     }
 
     sMoveToHueMessage.u8SourceEndpoint      = psSourceEndpoint->u8Endpoint;
-    eUtils_LockUnlock(&psControlBridge->sLock);
+    mico_rtos_unlock_mutex(&psControlBridge->sLock);
 
     if (psZCBNode)
     {
@@ -400,7 +403,7 @@ teZcbStatus eZBZLL_MoveToHue(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, ui
             sMoveToHueMessage.u8TargetAddressMode   = E_ZB_ADDRESS_MODE_SHORT_NO_ACK;
         }
         sMoveToHueMessage.u16TargetAddress      = htons(psZCBNode->u16ShortAddress);
-        
+
         psDestinationEndpoint = psZCB_NodeFindEndpoint(psZCBNode, E_ZB_CLUSTERID_COLOR_CONTROL);
 
         if (psDestinationEndpoint)
@@ -411,7 +414,7 @@ teZcbStatus eZBZLL_MoveToHue(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, ui
         {
             sMoveToHueMessage.u8DestinationEndpoint = ZB_DEFAULT_ENDPOINT_ZLL;
         }
-        eUtils_LockUnlock(&psZCBNode->sLock);
+        mico_rtos_unlock_mutex(&psZCBNode->sLock);
     }
     else
     {
@@ -419,7 +422,7 @@ teZcbStatus eZBZLL_MoveToHue(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, ui
         sMoveToHueMessage.u16TargetAddress      = htons(u16GroupAddress);
         sMoveToHueMessage.u8DestinationEndpoint = ZB_DEFAULT_ENDPOINT_ZLL;
     }
-    
+
     sMoveToHueMessage.u8Hue               = u8Hue;
     sMoveToHueMessage.u8Direction         = 0;
     sMoveToHueMessage.u16TransitionTime   = htons(u16TransitionTime);
@@ -428,7 +431,7 @@ teZcbStatus eZBZLL_MoveToHue(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, ui
     {
         return E_ZCB_COMMS_FAILED;
     }
-    
+
     if (psZCBNode)
     {
         return eZCB_GetDefaultResponse(u8SequenceNo);
@@ -446,7 +449,7 @@ teZcbStatus eZBZLL_MoveToSaturation(tsZCB_Node *psZCBNode, uint16_t u16GroupAddr
     tsZCB_NodeEndpoint  *psSourceEndpoint;
     tsZCB_NodeEndpoint  *psDestinationEndpoint;
     uint8_t             u8SequenceNo;
-    
+#pragma pack(1)
     struct
     {
         uint8_t     u8TargetAddressMode;
@@ -455,10 +458,10 @@ teZcbStatus eZBZLL_MoveToSaturation(tsZCB_Node *psZCBNode, uint16_t u16GroupAddr
         uint8_t     u8DestinationEndpoint;
         uint8_t     u8Saturation;
         uint16_t    u16TransitionTime;
-    } __attribute__((__packed__)) sMoveToSaturationMessage;
-    
-    DBG_vPrintf(DBG_ZLL, "Set Saturation %d\n", u8Saturation);
-    
+    } sMoveToSaturationMessage;
+#pragma pack()
+    user_ZigbeeZLL_log("Set Saturation %d\n", u8Saturation);
+
     psControlBridge = psZCB_FindNodeControlBridge();
     if (!psControlBridge)
     {
@@ -467,12 +470,12 @@ teZcbStatus eZBZLL_MoveToSaturation(tsZCB_Node *psZCBNode, uint16_t u16GroupAddr
     psSourceEndpoint = psZCB_NodeFindEndpoint(psControlBridge, E_ZB_CLUSTERID_COLOR_CONTROL);
     if (!psSourceEndpoint)
     {
-        DBG_vPrintf(DBG_ZLL, "Cluster ID 0x%04X not found on control bridge\n", E_ZB_CLUSTERID_COLOR_CONTROL);
+        user_ZigbeeZLL_log("Cluster ID 0x%04X not found on control bridge\n", E_ZB_CLUSTERID_COLOR_CONTROL);
         return E_ZCB_ERROR;
     }
 
     sMoveToSaturationMessage.u8SourceEndpoint      = psSourceEndpoint->u8Endpoint;
-    eUtils_LockUnlock(&psControlBridge->sLock);
+    mico_rtos_unlock_mutex(&psControlBridge->sLock);
 
     if (psZCBNode)
     {
@@ -485,7 +488,7 @@ teZcbStatus eZBZLL_MoveToSaturation(tsZCB_Node *psZCBNode, uint16_t u16GroupAddr
             sMoveToSaturationMessage.u8TargetAddressMode   = E_ZB_ADDRESS_MODE_SHORT_NO_ACK;
         }
         sMoveToSaturationMessage.u16TargetAddress      = htons(psZCBNode->u16ShortAddress);
-        
+
         psDestinationEndpoint = psZCB_NodeFindEndpoint(psZCBNode, E_ZB_CLUSTERID_COLOR_CONTROL);
 
         if (psDestinationEndpoint)
@@ -496,7 +499,7 @@ teZcbStatus eZBZLL_MoveToSaturation(tsZCB_Node *psZCBNode, uint16_t u16GroupAddr
         {
             sMoveToSaturationMessage.u8DestinationEndpoint = ZB_DEFAULT_ENDPOINT_ZLL;
         }
-        eUtils_LockUnlock(&psZCBNode->sLock);
+        mico_rtos_unlock_mutex(&psZCBNode->sLock);
     }
     else
     {
@@ -504,7 +507,7 @@ teZcbStatus eZBZLL_MoveToSaturation(tsZCB_Node *psZCBNode, uint16_t u16GroupAddr
         sMoveToSaturationMessage.u16TargetAddress      = htons(u16GroupAddress);
         sMoveToSaturationMessage.u8DestinationEndpoint = ZB_DEFAULT_ENDPOINT_ZLL;
     }
-    
+
     sMoveToSaturationMessage.u8Saturation        = u8Saturation;
     sMoveToSaturationMessage.u16TransitionTime   = htons(u16TransitionTime);
 
@@ -512,7 +515,7 @@ teZcbStatus eZBZLL_MoveToSaturation(tsZCB_Node *psZCBNode, uint16_t u16GroupAddr
     {
         return E_ZCB_COMMS_FAILED;
     }
-    
+
     if (psZCBNode)
     {
         return eZCB_GetDefaultResponse(u8SequenceNo);
@@ -531,7 +534,7 @@ teZcbStatus eZBZLL_MoveToHueSaturation(tsZCB_Node *psZCBNode, uint16_t u16GroupA
     tsZCB_NodeEndpoint  *psSourceEndpoint;
     tsZCB_NodeEndpoint  *psDestinationEndpoint;
     uint8_t             u8SequenceNo;
-    
+#pragma pack(1)
     struct
     {
         uint8_t     u8TargetAddressMode;
@@ -541,10 +544,10 @@ teZcbStatus eZBZLL_MoveToHueSaturation(tsZCB_Node *psZCBNode, uint16_t u16GroupA
         uint8_t     u8Hue;
         uint8_t     u8Saturation;
         uint16_t    u16TransitionTime;
-    } __attribute__((__packed__)) sMoveToHueSaturationMessage;
-    
-    DBG_vPrintf(DBG_ZLL, "Set Hue %d, Saturation %d\n", u8Hue, u8Saturation);
-    
+    } sMoveToHueSaturationMessage;
+#pragma pack()
+    user_ZigbeeZLL_log("Set Hue %d, Saturation %d\n", u8Hue, u8Saturation);
+
     psControlBridge = psZCB_FindNodeControlBridge();
     if (!psControlBridge)
     {
@@ -553,12 +556,12 @@ teZcbStatus eZBZLL_MoveToHueSaturation(tsZCB_Node *psZCBNode, uint16_t u16GroupA
     psSourceEndpoint = psZCB_NodeFindEndpoint(psControlBridge, E_ZB_CLUSTERID_COLOR_CONTROL);
     if (!psSourceEndpoint)
     {
-        DBG_vPrintf(DBG_ZLL, "Cluster ID 0x%04X not found on control bridge\n", E_ZB_CLUSTERID_COLOR_CONTROL);
+        user_ZigbeeZLL_log("Cluster ID 0x%04X not found on control bridge\n", E_ZB_CLUSTERID_COLOR_CONTROL);
         return E_ZCB_ERROR;
     }
 
     sMoveToHueSaturationMessage.u8SourceEndpoint      = psSourceEndpoint->u8Endpoint;
-    eUtils_LockUnlock(&psControlBridge->sLock);
+    mico_rtos_unlock_mutex(&psControlBridge->sLock);
 
     if (psZCBNode)
     {
@@ -571,7 +574,7 @@ teZcbStatus eZBZLL_MoveToHueSaturation(tsZCB_Node *psZCBNode, uint16_t u16GroupA
             sMoveToHueSaturationMessage.u8TargetAddressMode   = E_ZB_ADDRESS_MODE_SHORT_NO_ACK;
         }
         sMoveToHueSaturationMessage.u16TargetAddress      = htons(psZCBNode->u16ShortAddress);
-        
+
         psDestinationEndpoint = psZCB_NodeFindEndpoint(psZCBNode, E_ZB_CLUSTERID_COLOR_CONTROL);
 
         if (psDestinationEndpoint)
@@ -582,7 +585,7 @@ teZcbStatus eZBZLL_MoveToHueSaturation(tsZCB_Node *psZCBNode, uint16_t u16GroupA
         {
             sMoveToHueSaturationMessage.u8DestinationEndpoint = ZB_DEFAULT_ENDPOINT_ZLL;
         }
-        eUtils_LockUnlock(&psZCBNode->sLock);
+        mico_rtos_unlock_mutex(&psZCBNode->sLock);
     }
     else
     {
@@ -590,7 +593,7 @@ teZcbStatus eZBZLL_MoveToHueSaturation(tsZCB_Node *psZCBNode, uint16_t u16GroupA
         sMoveToHueSaturationMessage.u16TargetAddress      = htons(u16GroupAddress);
         sMoveToHueSaturationMessage.u8DestinationEndpoint = ZB_DEFAULT_ENDPOINT_ZLL;
     }
-    
+
     sMoveToHueSaturationMessage.u8Hue               = u8Hue;
     sMoveToHueSaturationMessage.u8Saturation        = u8Saturation;
     sMoveToHueSaturationMessage.u16TransitionTime   = htons(u16TransitionTime);
@@ -599,7 +602,7 @@ teZcbStatus eZBZLL_MoveToHueSaturation(tsZCB_Node *psZCBNode, uint16_t u16GroupA
     {
         return E_ZCB_COMMS_FAILED;
     }
-    
+
     if (psZCBNode)
     {
         return eZCB_GetDefaultResponse(u8SequenceNo);
@@ -617,7 +620,7 @@ teZcbStatus eZBZLL_MoveToColour(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress,
     tsZCB_NodeEndpoint  *psSourceEndpoint;
     tsZCB_NodeEndpoint  *psDestinationEndpoint;
     uint8_t             u8SequenceNo;
-    
+#pragma pack(1)
     struct
     {
         uint8_t     u8TargetAddressMode;
@@ -627,10 +630,10 @@ teZcbStatus eZBZLL_MoveToColour(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress,
         uint16_t    u16X;
         uint16_t    u16Y;
         uint16_t    u16TransitionTime;
-    } __attribute__((__packed__)) sMoveToColourMessage;
-    
-    DBG_vPrintf(DBG_ZLL, "Set X %d, Y %d\n", u16X, u16Y);
-    
+    } sMoveToColourMessage;
+#pragma pack()
+    user_ZigbeeZLL_log("Set X %d, Y %d\n", u16X, u16Y);
+
     psControlBridge = psZCB_FindNodeControlBridge();
     if (!psControlBridge)
     {
@@ -639,12 +642,12 @@ teZcbStatus eZBZLL_MoveToColour(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress,
     psSourceEndpoint = psZCB_NodeFindEndpoint(psControlBridge, E_ZB_CLUSTERID_COLOR_CONTROL);
     if (!psSourceEndpoint)
     {
-        DBG_vPrintf(DBG_ZLL, "Cluster ID 0x%04X not found on control bridge\n", E_ZB_CLUSTERID_COLOR_CONTROL);
+        user_ZigbeeZLL_log("Cluster ID 0x%04X not found on control bridge\n", E_ZB_CLUSTERID_COLOR_CONTROL);
         return E_ZCB_ERROR;
     }
 
     sMoveToColourMessage.u8SourceEndpoint      = psSourceEndpoint->u8Endpoint;
-    eUtils_LockUnlock(&psControlBridge->sLock);
+    mico_rtos_unlock_mutex(&psControlBridge->sLock);
 
     if (psZCBNode)
     {
@@ -657,7 +660,7 @@ teZcbStatus eZBZLL_MoveToColour(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress,
             sMoveToColourMessage.u8TargetAddressMode   = E_ZB_ADDRESS_MODE_SHORT_NO_ACK;
         }
         sMoveToColourMessage.u16TargetAddress      = htons(psZCBNode->u16ShortAddress);
-        
+
         psDestinationEndpoint = psZCB_NodeFindEndpoint(psZCBNode, E_ZB_CLUSTERID_COLOR_CONTROL);
 
         if (psDestinationEndpoint)
@@ -668,7 +671,7 @@ teZcbStatus eZBZLL_MoveToColour(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress,
         {
             sMoveToColourMessage.u8DestinationEndpoint = ZB_DEFAULT_ENDPOINT_ZLL;
         }
-        eUtils_LockUnlock(&psZCBNode->sLock);
+        mico_rtos_unlock_mutex(&psZCBNode->sLock);
     }
     else
     {
@@ -676,7 +679,7 @@ teZcbStatus eZBZLL_MoveToColour(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress,
         sMoveToColourMessage.u16TargetAddress      = htons(u16GroupAddress);
         sMoveToColourMessage.u8DestinationEndpoint = ZB_DEFAULT_ENDPOINT_ZLL;
     }
-    
+
     sMoveToColourMessage.u16X                = htons(u16X);
     sMoveToColourMessage.u16Y                = htons(u16Y);
     sMoveToColourMessage.u16TransitionTime   = htons(u16TransitionTime);
@@ -685,7 +688,7 @@ teZcbStatus eZBZLL_MoveToColour(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress,
     {
         return E_ZCB_COMMS_FAILED;
     }
-    
+
     if (psZCBNode)
     {
         return eZCB_GetDefaultResponse(u8SequenceNo);
@@ -703,7 +706,7 @@ teZcbStatus eZBZLL_MoveToColourTemperature(tsZCB_Node *psZCBNode, uint16_t u16Gr
     tsZCB_NodeEndpoint  *psSourceEndpoint;
     tsZCB_NodeEndpoint  *psDestinationEndpoint;
     uint8_t             u8SequenceNo;
-    
+#pragma pack(1)
     struct
     {
         uint8_t     u8TargetAddressMode;
@@ -712,10 +715,10 @@ teZcbStatus eZBZLL_MoveToColourTemperature(tsZCB_Node *psZCBNode, uint16_t u16Gr
         uint8_t     u8DestinationEndpoint;
         uint16_t    u16ColourTemperature;
         uint16_t    u16TransitionTime;
-    } __attribute__((__packed__)) sMoveToColourTemperatureMessage;
-    
-    DBG_vPrintf(DBG_ZLL, "Set colour temperature %d\n", u16ColourTemperature);
-    
+    } sMoveToColourTemperatureMessage;
+#pragma pack()
+    user_ZigbeeZLL_log("Set colour temperature %d\n", u16ColourTemperature);
+
     psControlBridge = psZCB_FindNodeControlBridge();
     if (!psControlBridge)
     {
@@ -724,12 +727,12 @@ teZcbStatus eZBZLL_MoveToColourTemperature(tsZCB_Node *psZCBNode, uint16_t u16Gr
     psSourceEndpoint = psZCB_NodeFindEndpoint(psControlBridge, E_ZB_CLUSTERID_COLOR_CONTROL);
     if (!psSourceEndpoint)
     {
-        DBG_vPrintf(DBG_ZLL, "Cluster ID 0x%04X not found on control bridge\n", E_ZB_CLUSTERID_COLOR_CONTROL);
+        user_ZigbeeZLL_log("Cluster ID 0x%04X not found on control bridge\n", E_ZB_CLUSTERID_COLOR_CONTROL);
         return E_ZCB_ERROR;
     }
 
     sMoveToColourTemperatureMessage.u8SourceEndpoint      = psSourceEndpoint->u8Endpoint;
-    eUtils_LockUnlock(&psControlBridge->sLock);
+    mico_rtos_unlock_mutex(&psControlBridge->sLock);
 
     if (psZCBNode)
     {
@@ -742,7 +745,7 @@ teZcbStatus eZBZLL_MoveToColourTemperature(tsZCB_Node *psZCBNode, uint16_t u16Gr
             sMoveToColourTemperatureMessage.u8TargetAddressMode   = E_ZB_ADDRESS_MODE_SHORT_NO_ACK;
         }
         sMoveToColourTemperatureMessage.u16TargetAddress      = htons(psZCBNode->u16ShortAddress);
-        
+
         psDestinationEndpoint = psZCB_NodeFindEndpoint(psZCBNode, E_ZB_CLUSTERID_COLOR_CONTROL);
 
         if (psDestinationEndpoint)
@@ -753,7 +756,7 @@ teZcbStatus eZBZLL_MoveToColourTemperature(tsZCB_Node *psZCBNode, uint16_t u16Gr
         {
             sMoveToColourTemperatureMessage.u8DestinationEndpoint = ZB_DEFAULT_ENDPOINT_ZLL;
         }
-        eUtils_LockUnlock(&psZCBNode->sLock);
+        mico_rtos_unlock_mutex(&psZCBNode->sLock);
     }
     else
     {
@@ -761,7 +764,7 @@ teZcbStatus eZBZLL_MoveToColourTemperature(tsZCB_Node *psZCBNode, uint16_t u16Gr
         sMoveToColourTemperatureMessage.u16TargetAddress      = htons(u16GroupAddress);
         sMoveToColourTemperatureMessage.u8DestinationEndpoint = ZB_DEFAULT_ENDPOINT_ZLL;
     }
-    
+
     sMoveToColourTemperatureMessage.u16ColourTemperature    = htons(u16ColourTemperature);
     sMoveToColourTemperatureMessage.u16TransitionTime       = htons(u16TransitionTime);
 
@@ -769,7 +772,7 @@ teZcbStatus eZBZLL_MoveToColourTemperature(tsZCB_Node *psZCBNode, uint16_t u16Gr
     {
         return E_ZCB_COMMS_FAILED;
     }
-    
+
     if (psZCBNode)
     {
         return eZCB_GetDefaultResponse(u8SequenceNo);
@@ -787,7 +790,7 @@ teZcbStatus eZBZLL_MoveColourTemperature(tsZCB_Node *psZCBNode, uint16_t u16Grou
     tsZCB_NodeEndpoint  *psSourceEndpoint;
     tsZCB_NodeEndpoint  *psDestinationEndpoint;
     uint8_t             u8SequenceNo;
-    
+#pragma pack(1)
     struct
     {
         uint8_t     u8TargetAddressMode;
@@ -798,10 +801,10 @@ teZcbStatus eZBZLL_MoveColourTemperature(tsZCB_Node *psZCBNode, uint16_t u16Grou
         uint16_t    u16Rate;
         uint16_t    u16ColourTemperatureMin;
         uint16_t    u16ColourTemperatureMax;
-    } __attribute__((__packed__)) sMoveColourTemperatureMessage;
-    
-    DBG_vPrintf(DBG_ZLL, "Move colour temperature\n");
-    
+    } sMoveColourTemperatureMessage;
+#pragma pack()
+    user_ZigbeeZLL_log("Move colour temperature\n");
+
     psControlBridge = psZCB_FindNodeControlBridge();
     if (!psControlBridge)
     {
@@ -810,12 +813,12 @@ teZcbStatus eZBZLL_MoveColourTemperature(tsZCB_Node *psZCBNode, uint16_t u16Grou
     psSourceEndpoint = psZCB_NodeFindEndpoint(psControlBridge, E_ZB_CLUSTERID_COLOR_CONTROL);
     if (!psSourceEndpoint)
     {
-        DBG_vPrintf(DBG_ZLL, "Cluster ID 0x%04X not found on control bridge\n", E_ZB_CLUSTERID_COLOR_CONTROL);
+        user_ZigbeeZLL_log("Cluster ID 0x%04X not found on control bridge\n", E_ZB_CLUSTERID_COLOR_CONTROL);
         return E_ZCB_ERROR;
     }
 
     sMoveColourTemperatureMessage.u8SourceEndpoint      = psSourceEndpoint->u8Endpoint;
-    eUtils_LockUnlock(&psControlBridge->sLock);
+    mico_rtos_unlock_mutex(&psControlBridge->sLock);
 
     if (psZCBNode)
     {
@@ -828,7 +831,7 @@ teZcbStatus eZBZLL_MoveColourTemperature(tsZCB_Node *psZCBNode, uint16_t u16Grou
             sMoveColourTemperatureMessage.u8TargetAddressMode   = E_ZB_ADDRESS_MODE_SHORT_NO_ACK;
         }
         sMoveColourTemperatureMessage.u16TargetAddress      = htons(psZCBNode->u16ShortAddress);
-        
+
         psDestinationEndpoint = psZCB_NodeFindEndpoint(psZCBNode, E_ZB_CLUSTERID_COLOR_CONTROL);
 
         if (psDestinationEndpoint)
@@ -839,7 +842,7 @@ teZcbStatus eZBZLL_MoveColourTemperature(tsZCB_Node *psZCBNode, uint16_t u16Grou
         {
             sMoveColourTemperatureMessage.u8DestinationEndpoint = ZB_DEFAULT_ENDPOINT_ZLL;
         }
-        eUtils_LockUnlock(&psZCBNode->sLock);
+        mico_rtos_unlock_mutex(&psZCBNode->sLock);
     }
     else
     {
@@ -847,17 +850,17 @@ teZcbStatus eZBZLL_MoveColourTemperature(tsZCB_Node *psZCBNode, uint16_t u16Grou
         sMoveColourTemperatureMessage.u16TargetAddress      = htons(u16GroupAddress);
         sMoveColourTemperatureMessage.u8DestinationEndpoint = ZB_DEFAULT_ENDPOINT_ZLL;
     }
-    
+
     sMoveColourTemperatureMessage.u8Mode                    = u8Mode;
     sMoveColourTemperatureMessage.u16Rate                   = htons(u16Rate);
     sMoveColourTemperatureMessage.u16ColourTemperatureMin   = htons(u16ColourTemperatureMin);
     sMoveColourTemperatureMessage.u16ColourTemperatureMax   = htons(u16ColourTemperatureMax);
-    
+
     if (eSL_SendMessage(E_SL_MSG_MOVE_COLOUR_TEMPERATURE, sizeof(sMoveColourTemperatureMessage), &sMoveColourTemperatureMessage, &u8SequenceNo) != E_SL_OK)
     {
         return E_ZCB_COMMS_FAILED;
     }
-    
+
     if (psZCBNode)
     {
         return eZCB_GetDefaultResponse(u8SequenceNo);
@@ -875,7 +878,7 @@ teZcbStatus eZBZLL_ColourLoopSet(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress
     tsZCB_NodeEndpoint  *psSourceEndpoint;
     tsZCB_NodeEndpoint  *psDestinationEndpoint;
     uint8_t             u8SequenceNo;
-    
+#pragma pack(1)
     struct
     {
         uint8_t     u8TargetAddressMode;
@@ -887,10 +890,10 @@ teZcbStatus eZBZLL_ColourLoopSet(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress
         uint8_t     u8Direction;
         uint16_t    u16Time;
         uint16_t    u16StartHue;
-    } __attribute__((__packed__)) sColourLoopSetMessage;
-    
-    DBG_vPrintf(DBG_ZLL, "Colour loop set\n");
-    
+    } sColourLoopSetMessage;
+#pragma pack()
+    user_ZigbeeZLL_log("Colour loop set\n");
+
     psControlBridge = psZCB_FindNodeControlBridge();
     if (!psControlBridge)
     {
@@ -899,12 +902,12 @@ teZcbStatus eZBZLL_ColourLoopSet(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress
     psSourceEndpoint = psZCB_NodeFindEndpoint(psControlBridge, E_ZB_CLUSTERID_COLOR_CONTROL);
     if (!psSourceEndpoint)
     {
-        DBG_vPrintf(DBG_ZLL, "Cluster ID 0x%04X not found on control bridge\n", E_ZB_CLUSTERID_COLOR_CONTROL);
+        user_ZigbeeZLL_log("Cluster ID 0x%04X not found on control bridge\n", E_ZB_CLUSTERID_COLOR_CONTROL);
         return E_ZCB_ERROR;
     }
 
     sColourLoopSetMessage.u8SourceEndpoint      = psSourceEndpoint->u8Endpoint;
-    eUtils_LockUnlock(&psControlBridge->sLock);
+    mico_rtos_unlock_mutex(&psControlBridge->sLock);
 
     if (psZCBNode)
     {
@@ -917,7 +920,7 @@ teZcbStatus eZBZLL_ColourLoopSet(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress
             sColourLoopSetMessage.u8TargetAddressMode   = E_ZB_ADDRESS_MODE_SHORT_NO_ACK;
         }
         sColourLoopSetMessage.u16TargetAddress      = htons(psZCBNode->u16ShortAddress);
-        
+
         psDestinationEndpoint = psZCB_NodeFindEndpoint(psZCBNode, E_ZB_CLUSTERID_COLOR_CONTROL);
 
         if (psDestinationEndpoint)
@@ -928,7 +931,7 @@ teZcbStatus eZBZLL_ColourLoopSet(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress
         {
             sColourLoopSetMessage.u8DestinationEndpoint = ZB_DEFAULT_ENDPOINT_ZLL;
         }
-        eUtils_LockUnlock(&psZCBNode->sLock);
+        mico_rtos_unlock_mutex(&psZCBNode->sLock);
     }
     else
     {
@@ -936,18 +939,18 @@ teZcbStatus eZBZLL_ColourLoopSet(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress
         sColourLoopSetMessage.u16TargetAddress      = htons(u16GroupAddress);
         sColourLoopSetMessage.u8DestinationEndpoint = ZB_DEFAULT_ENDPOINT_ZLL;
     }
-    
+
     sColourLoopSetMessage.u8UpdateFlags             = u8UpdateFlags;
     sColourLoopSetMessage.u8Action                  = u8Action;
     sColourLoopSetMessage.u8Direction               = u8Direction;
     sColourLoopSetMessage.u16Time                   = htons(u16Time);
     sColourLoopSetMessage.u16StartHue               = htons(u16StartHue);
-    
+
     if (eSL_SendMessage(E_SL_MSG_COLOUR_LOOP_SET, sizeof(sColourLoopSetMessage), &sColourLoopSetMessage, &u8SequenceNo) != E_SL_OK)
     {
         return E_ZCB_COMMS_FAILED;
     }
-    
+
     if (psZCBNode)
     {
         return eZCB_GetDefaultResponse(u8SequenceNo);

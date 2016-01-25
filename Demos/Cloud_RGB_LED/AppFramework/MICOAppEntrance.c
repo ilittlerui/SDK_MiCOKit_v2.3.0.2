@@ -23,11 +23,6 @@
 #include "MICOAppDefine.h"
 #include "MiCOFogCloud.h"
 
-//#ifdef USE_MiCOKit_EXT
-//#include "micokit_ext.h"
-//extern bool MicoExtShouldEnterTestMode(void);
-//#endif
-
 #define app_log(M, ...) custom_log("APP", M, ##__VA_ARGS__)
 #define app_log_trace() custom_log_trace("APP")
 

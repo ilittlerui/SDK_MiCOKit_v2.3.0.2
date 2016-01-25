@@ -41,7 +41,6 @@
 
 #include <stdint.h>
 
-#include "Utils.h"
 
 #if defined __cplusplus
 extern "C" {
@@ -51,7 +50,7 @@ extern "C" {
 /***        Include files                                                 ***/
 /****************************************************************************/
 
-#include "ZigbeeControlBridge.h"
+#include "ZigBeeControlBridge.h"
 
 /****************************************************************************/
 /***        Macro Definitions                                             ***/
@@ -81,7 +80,7 @@ extern "C" {
 /***        Exported Functions                                            ***/
 /****************************************************************************/
 
-teZcbStatus eZBZLL_OnOff(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, uint8_t u8Mode);
+teZcbStatus eZBZLL_OnOff(tsZCB_Node *psZCBNode, uint8_t u8EndpointID, uint16_t u16GroupAddress, uint8_t u8Mode);
 teZcbStatus eZBZLL_OnOffCheck(tsZCB_Node *psZCBNode, uint8_t u8Mode);
 
 teZcbStatus eZBZLL_MoveToLevel(tsZCB_Node *psZCBNode, uint16_t u16GroupAddress, uint8_t u8OnOff, uint8_t u8Level, uint16_t u16TransitionTime);

@@ -1,6 +1,6 @@
 /**
 ******************************************************************************
-* @file    FogCloudService.h 
+* @file    FogCloudService.h
 * @author  Eshen Wang
 * @version V0.2.0
 * @date    23-Nov-2014
@@ -18,7 +18,7 @@
 *
 * <h2><center>&copy; COPYRIGHT 2014 MXCHIP Inc.</center></h2>
 ******************************************************************************
-*/ 
+*/
 
 #ifndef __FOGCLOUD_SERVICE_H_
 #define __FOGCLOUD_SERVICE_H_
@@ -38,20 +38,20 @@ easycloud_service_state_t FogCloudServiceState(easycloud_service_context_t* cons
 OSStatus FogCloudActivate(easycloud_service_context_t* const context);
 OSStatus FogCloudAuthorize(easycloud_service_context_t* const context);
 
-OSStatus FogCloudPublish(easycloud_service_context_t* const context, 
-                          const unsigned char *msg, unsigned int msgLen);
+OSStatus FogCloudPublish(easycloud_service_context_t* const context,
+                         const unsigned char *msg, unsigned int msgLen);
 // publish to any topic
-OSStatus FogCloudPublishto(easycloud_service_context_t* const context, 
-                            const char* topic, 
-                            const unsigned char *msg, unsigned int msgLen);
+OSStatus FogCloudPublishto(easycloud_service_context_t* const context,
+                           const char* topic,
+                           const unsigned char *msg, unsigned int msgLen);
 // publish to sub-level "device_id/in/<level>"
-OSStatus FogCloudPublishtoChannel(easycloud_service_context_t* const context, 
-                            const char* channel, 
-                            const unsigned char *msg, unsigned int msgLen);
+OSStatus FogCloudPublishtoChannel(easycloud_service_context_t* const context,
+                                  const char* channel,
+                                  const unsigned char *msg, unsigned int msgLen);
 
 OSStatus FogCloudGetLatestRomVersion(easycloud_service_context_t* const context); //get rom version
 OSStatus FogCloudGetRomData(easycloud_service_context_t* const context,
-                             ecs_ota_flash_params_t ota_flash_params); //get rom data && write to flash
+                            ecs_ota_flash_params_t ota_flash_params); //get rom data && write to flash
 
 OSStatus FogCloudDeviceReset(easycloud_service_context_t* const context);
 

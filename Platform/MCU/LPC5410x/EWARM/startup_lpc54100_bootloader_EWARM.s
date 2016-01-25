@@ -208,7 +208,8 @@ Reset_Handler
 ;; Default interrupt handlers.
 ;;
         PUBWEAK SystemInit
-        SECTION .text:CODE:REORDER(1)
+;;      SECTION .text:CODE:REORDER(1)
+        SECTION .text:CODE:REORDER:NOROOT(1)
 SystemInit
         BX		LR
 

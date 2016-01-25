@@ -36,11 +36,11 @@ E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Projects\LPC5410x\MiCOKit_Enjoy\EWAR
 -I
 E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Projects\LPC5410x\MiCOKit_Enjoy\EWARM\..\..\..\..\MICO\system\mdns
 -I
-C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2_2\arm\CMSIS\Include
+C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2\arm\CMSIS\Include
 -I
-C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2_2\arm\inc
+C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2\arm\inc
 -I
-C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2_2\arm\inc\c
+C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2\arm\inc\c
 -I
 E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Demos\MiCOKit_Enjoy
 -I
@@ -76,7 +76,7 @@ E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Platform\Drivers\MiCOKit_EXT
 -I
 E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\MICO\system\mdns
 -I
-C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2_2\arm\CMSIS\Include
+C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2\arm\CMSIS\Include
 -DUSE_STDPERIPH_DRIVER=1
 -DDEBUG=1
 -DHSE_VALUE=16000000
@@ -310,8 +310,8 @@ C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2_2\arm\CMSIS\Include
 -D__EDG_SYSV=0
 -D__EDG_ANSIC=1
 -D__EDG_CPP11_IL_EXTENSIONS_SUPPORTED=1
--D_DLIB_CONFIG_FILE_HEADER_NAME="C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2_2\arm\INC\c\DLib_Config_Full.h"
--D_DLIB_CONFIG_FILE_STRING="C:\\Program Files (x86)\\IAR Systems\\Embedded Workbench 7.2_2\\arm\\INC\\c\\DLib_Config_Full.h"
+-D_DLIB_CONFIG_FILE_HEADER_NAME="C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2\arm\INC\c\DLib_Config_Full.h"
+-D_DLIB_CONFIG_FILE_STRING="C:\\Program Files (x86)\\IAR Systems\\Embedded Workbench 7.2\\arm\\INC\\c\\DLib_Config_Full.h"
 -D__VERSION__="IAR ANSI C/C++ Compiler V7.40.3.8902/W32 for ARM"
 -D_VA_DEFINED=
 -D__CODE_MEMORY_LIST1__()=__CODE_MEM_HELPER1__(__code, 0 )

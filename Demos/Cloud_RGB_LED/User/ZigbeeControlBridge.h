@@ -32,9 +32,17 @@ extern "C" {
 
 /* Default network configuration 	默认网络配置*/
 #define CONFIG_DEFAULT_START_MODE       E_START_COORDINATOR
-#define CONFIG_DEFAULT_CHANNEL          15
+#define CONFIG_DEFAULT_CHANNEL          19	//default 16
 #define CONFIG_DEFAULT_PANID            0x1234567812345678ll
 
+
+#define CLUSTER_ATTRIBUTES_MAX 10
+#define CLUSTER_COMMAND_MAX 10
+
+#define CLUSTER_MAX_NUM 10
+
+#define ENDPOINT_MAX_NUM 2
+#define GROUP_MAX_NUM 5
 /****************************************************************************/
 /***        Type Definitions                                              ***/
 /****************************************************************************/
@@ -121,12 +129,6 @@ typedef struct
     teZcbEvent                      eEvent;
     union
     {
-//        struct
-//        {
-//        } sNetworkFormed;
-//        struct
-//        {
-//        } sNetworkJoined;
         struct
         {
             uint16_t                u16ShortAddress;
@@ -199,58 +201,72 @@ typedef enum
 
 
 
-/** Structure representing a cluster on a node */
+/** Structure representing a cluster on a node 	表示一个 cluster*/
 typedef struct _tsZCB_NodeCluster
 {
-    uint16_t            *pau16Attributes;
-    uint8_t             *pau8Commands;
+    uint16_t            *pau16Attributes;	//  属性  2* u32NumAttributes bytes
+    uint8_t             *pau8Commands;		//  命令  u32NumCommands bytes
 
-    uint32_t            u32NumAttributes;
-    uint32_t            u32NumCommands;
+    uint32_t            u32NumAttributes;//4 bytes
+    uint32_t            u32NumCommands;	//4 bytes
 
-    uint16_t            u16ClusterID;
-} tsZCB_NodeCluster;
+    uint16_t            u16ClusterID;	//2 bytes
+} tsZCB_NodeCluster;			//about 2 + 4 + 4 + u32NumCommands + 2* u32NumAttributes
+
+typedef struct _tsZCB_NodeClusterPDM
+{
+    uint16_t            u16ClusterID;	//2 bytes	ClusterID 号
+    uint32_t            u32NumAttributes;//4 bytes	attributes 数量
+    uint32_t            u32NumCommands;	//4 bytes   commands 数量
+    uint16_t            pau16Attributes[CLUSTER_ATTRIBUTES_MAX];	//  属性  2* CLUSTER_ATTRIBUTES_MAX bytes
+    uint8_t             pau8Commands[CLUSTER_COMMAND_MAX];		    //  命令  CLUSTER_COMMAND_MAX bytes
+} tsZCB_NodeClusterPDM;			//40bytes
 
 
 typedef struct
 {
-    tsZCB_NodeCluster   *pasClusters;
+    tsZCB_NodeCluster   *pasClusters;	//	u32NumClusters*(2 + 4 + 4 + u32NumCommands + 2* u32NumAttributes)
 
-    uint32_t            u32NumClusters;
+    uint32_t            u32NumClusters;	//4 bytes   cluster 的数量
 
-    uint16_t            u16ProfileID;
+    uint16_t            u16ProfileID;	//2 bytes
 
-    uint8_t             u8Endpoint;
-} tsZCB_NodeEndpoint;
+    uint8_t             u8Endpoint;	// 1 byte
+} tsZCB_NodeEndpoint;			//about 1 + 2 + 4 + u32NumClusters*(2 + 4 + 4 + u32NumCommands + 2* u32NumAttributes)
+
+typedef struct
+{
+    uint8_t             u8Endpoint;	// 1 byte endpoint ID号
+    uint16_t            u16ProfileID;	//2 bytes profileID号
+    uint32_t            u32NumClusters;	//4 bytes   cluster 的数量
+    tsZCB_NodeClusterPDM   pasClusters[CLUSTER_MAX_NUM];	//	Cluster  40*CLUSTER_MAX_NUM = 400bytes
+} tsZCB_NodeEndpointPDM;	//407 bytes
+
 
 
 typedef struct _tsZCB_Node
 {
-    struct _tsZCB_Node  *psNext;
+    struct _tsZCB_Node  *psNext;	//4 bytes
 
-    tsZCB_NodeEndpoint  *pasEndpoints;
+    tsZCB_NodeEndpoint  *pasEndpoints;	//about u32NumEndpoints(1 + 2 + 4 + u32NumClusters*(2 + 4 + 4 + u32NumCommands + 2* u32NumAttributes))
 
-    uint16_t            *pau16Groups;
+    uint16_t            *pau16Groups;	//4 bytes
 
-    mico_mutex_t        sLock;
+    mico_mutex_t        sLock;			//4 bytes
 
-    struct
-    {
-        //struct timeval  sLastSuccessful;        /**< Time of last successful communications */
-        uint16_t        u16SequentialFailures;  /**< Number of sequential failures */
-    } sComms;                                   /**< Structure containing communications statistics */
+    uint64_t            u64IEEEAddress;	//8 bytes
 
-    uint64_t            u64IEEEAddress;
-
-    uint32_t            u32NumEndpoints;
+    uint32_t            u32NumEndpoints;	//4 bytes		endpoint 的数量
     uint32_t            u32NumGroups;
 
-    uint16_t            u16ShortAddress;
-    uint16_t            u16DeviceID;
-    uint8_t             u8MacCapability;
+    uint16_t            u16ShortAddress;	//2 bytes
+    uint16_t            u16DeviceID;		//2 bytes
+    uint8_t             u8MacCapability;	//1 bytes
 
-    uint8_t             u8LastNeighbourTableIndex;
-} tsZCB_Node;
+    uint8_t             u8LastNeighbourTableIndex;	//1 bytes
+} tsZCB_Node;				// about 1 + 1 + 2 + 2 + 4 + 8 + 4 + 4 + 4 + 4 + u32NumEndpoints(1 + 2 + 4 + u32NumClusters*(2 + 4 + 4 + u32NumCommands + 2* u32NumAttributes))
+
+
 
 
 /****************************************************************************/
@@ -462,6 +478,9 @@ teZcbStatus eZCB_RemoveNode(tsZCB_Node *psZCBNode);
 
 teZcbStatus eZCB_HandleZcbEvent(tsZcbEvent *psEvent);
 
+teZcbStatus eZCB_IASZoneEnrollResponse(uint8_t u8TargetAddressMode,uint16_t u16TargetAddress,uint8_t u8SourceEndpoint,uint8_t u8DestinationEndpoint,uint8_t u8EnrollResponseCode,uint8_t u8ZoneID);
+
+void ZCB_HandleIASZoneStatusChangeNotify(void *pvUser, uint16_t u16Length, void *pvMessage);
 /****************************************************************************/
 /***        Local Functions                                               ***/
 /****************************************************************************/
@@ -474,7 +493,7 @@ void ZCB_HandleRestartProvisioned        (void *pvUser, uint16_t u16Length, void
 void ZCB_HandleRestartFactoryNew         (void *pvUser, uint16_t u16Length, void *pvMessage);
 
 void ZCB_HandleNetworkJoined             (void *pvUser, uint16_t u16Length, void *pvMessage);
-void ZCB_HandleDeviceAnnounce            (void *pvUser, uint16_t u16Length, void *pvMessage);
+void ZCB_HandleDeviceAnnounce            (void *pvUser, uint16_t u16Length, void *pvMessage,uint16_t deviceID);
 void ZCB_HandleDeviceLeave               (void *pvUser, uint16_t u16Length, void *pvMessage);
 void ZCB_HandleMatchDescriptorResponse   (void *pvUser, uint16_t u16Length, void *pvMessage);
 void ZCB_HandleAttributeReport           (void *pvUser, uint16_t u16Length, void *pvMessage);

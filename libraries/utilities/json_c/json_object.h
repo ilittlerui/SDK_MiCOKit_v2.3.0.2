@@ -165,13 +165,13 @@ extern void json_object_object_del(struct json_object* obj, const char *key);
  */
 #if defined(__GNUC__) && !defined(__STRICT_ANSI__)
 
-# define json_object_object_foreach(obj,key,val) \
+#define json_object_object_foreach(obj,key,val) \
  char *key; struct json_object *val; \
  for(struct lh_entry *entry = json_object_get_object(obj)->head; ({ if(entry) { key = (char*)entry->k; val = (struct json_object*)entry->v; } ; entry; }); entry = entry->next )
 
 #else /* ANSI C or MSC */
 
-# define json_object_object_foreach(obj,key,val) \
+#define json_object_object_foreach(obj,key,val) \
  char *key; struct json_object *val; struct lh_entry *entry; \
  for(entry = json_object_get_object(obj)->head; (entry ? (key = (char*)entry->k, val = (struct json_object*)entry->v, entry) : 0); entry = entry->next)
 

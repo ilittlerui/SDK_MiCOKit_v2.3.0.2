@@ -12,7 +12,7 @@ E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Projects\LPC5410x\bootloader\EWARM\.
 -I
 E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Projects\LPC5410x\bootloader\EWARM\..\..\..\..\External
 -I
-E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Projects\LPC5410x\bootloader\EWARM\..\..\..\..\Board\MiCOKit-3164
+E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Projects\LPC5410x\bootloader\EWARM\..\..\..\..\Board\MiCOKit-LPC5410x
 -I
 E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Projects\LPC5410x\bootloader\EWARM\..\..\..\..\Platform\include
 -I
@@ -48,7 +48,7 @@ E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Support
 -I
 E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\External
 -I
-E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Board\MiCOKit-3164
+E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Board\MiCOKit-LPC5410x
 -I
 E:\work\13.WiFi_Mxchip\SDK_MiCOKit_v2.3.0.2\Platform\include
 -I

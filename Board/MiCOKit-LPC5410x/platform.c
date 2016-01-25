@@ -42,6 +42,8 @@
 
 #ifdef USE_MiCOKit_EXT
 #include "micokit_ext.h"
+#else
+#include "mico_platform.h"
 #endif
 
 /******************************************************
@@ -241,13 +243,13 @@ const platform_uart_t platform_uart_peripherals[] =
 
     [MICO_UART_1] =
     {
-        .port                         = LPC_USART3,
-        .pin_tx                       = &platform_gpio_pins[NXP_GPIO_1_13],
-        .pin_rx                       = &platform_gpio_pins[NXP_GPIO_1_12],
+        .port                         = LPC_USART1,
+        .pin_tx                       = &platform_gpio_pins[NXP_GPIO_0_6],
+        .pin_rx                       = &platform_gpio_pins[NXP_GPIO_0_5],
         .pin_cts                      = NULL,
         .pin_rts                      = NULL,
-        .hwNdx = 3,
-        .irqNdx = UART3_IRQn,
+        .hwNdx = 1,
+        .irqNdx = UART1_IRQn,
 #ifndef BOOTLOADER
         .isRxFifoEn = 1,
 #else
@@ -381,15 +383,15 @@ const mico_logic_partition_t mico_partitions[] =
         .partition_owner           = MICO_FLASH_SPI,
         .partition_description     = "OTA Storage",
         .partition_start_addr      = 0x50000,
-        .partition_length          = 0x74000, //768k bytes     reality   464kb    0x74000
+        .partition_length          = 0x75000, //768k bytes 
         .partition_options         = PAR_OPT_READ_EN | PAR_OPT_WRITE_EN,
     },
     [MICO_PARTITION_ZIGBEEPDM_TEMP] =
     {
         .partition_owner           = MICO_FLASH_SPI,
         .partition_description     = "ZigBeeControlBridgePDM",
-        .partition_start_addr      = 0xC4000,
-        .partition_length          =    0x2000,   //+ 8k bytes
+        .partition_start_addr      = 0xC5000,
+        .partition_length          =    0x1000,   // 4k bytes
         .partition_options         = PAR_OPT_READ_EN | PAR_OPT_WRITE_EN,
     },
     [MICO_PARTITION_PARAMETER_1] =
@@ -403,7 +405,7 @@ const mico_logic_partition_t mico_partitions[] =
     [MICO_PARTITION_PARAMETER_2] =
     {
         .partition_owner           = MICO_FLASH_SPI,
-        .partition_description     = "PARAMETER1",
+        .partition_description     = "PARAMETER2",
         .partition_start_addr      = 0x1000,
         .partition_length          = 0x1000, //4k bytes
         .partition_options         = PAR_OPT_READ_EN | PAR_OPT_WRITE_EN,
@@ -612,7 +614,12 @@ void init_platform( void )
     //  Initialise EasyLink buttons
     MicoGpioInitialize( (mico_gpio_t)EasyLink_BUTTON, INPUT_HIGH_IMPEDANCE );
     mico_init_timer(&_button_EL_timer, RestoreDefault_TimeOut, _button_EL_Timeout_handler, NULL);
-    MicoGpioEnableIRQ( (mico_gpio_t)EasyLink_BUTTON, IRQ_TRIGGER_BOTH_EDGES, _button_EL_irq_handler, NULL );
+
+
+	MicoGpioEnableIRQ( (mico_gpio_t)EasyLink_BUTTON, IRQ_TRIGGER_BOTH_EDGES, _button_EL_irq_handler, NULL );
+	
+	//MicoGpioEnableIRQ( (mico_gpio_t)EasyLink_BUTTON, IRQ_TRIGGER_BOTH_EDGES, _button_EL_irq_handler, NULL );
+
 
 #ifdef USE_MiCOKit_EXT
     dc_motor_init( );

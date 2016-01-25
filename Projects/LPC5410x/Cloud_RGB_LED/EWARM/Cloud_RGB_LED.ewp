@@ -186,7 +186,6 @@
         <option>
           <name>CCDefines</name>
           <state>USE_STDPERIPH_DRIVER</state>
-          <state>DEBUG</state>
           <state>HSE_VALUE=16000000</state>
           <state>CORE_M4</state>
           <state>MICOKIT_LPC5410X</state>
@@ -2009,13 +2008,19 @@
         <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\user_uart.h</name>
       </file>
       <file>
+        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeAttributeReport.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeAttributeReport.h</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeConstant.h</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeControlBridge.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeControlBridge.h</name>
+        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigbeeControlBridge.h</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeNetwork.c</name>
@@ -2034,6 +2039,12 @@
       </file>
       <file>
         <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeSerialLink.h</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeZLL.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\..\..\Demos\Cloud_RGB_LED\User\ZigBeeZLL.h</name>
       </file>
     </group>
   </group>
@@ -2329,6 +2340,9 @@
       </group>
       <group>
         <name>MiCOKit-EXT</name>
+        <excluded>
+          <configuration>MiCOKit-LPC5410x</configuration>
+        </excluded>
         <group>
           <name>sensors</name>
           <group>

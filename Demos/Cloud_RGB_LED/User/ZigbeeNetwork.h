@@ -82,9 +82,10 @@ void        vZCB_NodeUpdateComms(tsZCB_Node *psZCBNode, teZcbStatus eStatus);
 *  \return A pointer to the endpoint or NULL if cluster ID not found
 */
 tsZCB_NodeEndpoint *psZCB_NodeFindEndpoint(tsZCB_Node *psZCBNode, uint16_t u16ClusterID);
-
+tsZCB_NodeEndpoint *psZCB_NodeFindEndpointID(tsZCB_Node *psZCBNode, uint8_t u8EndpointID);
 
 void DisplayZCBNetwork();
+void DBG_PrintDetailNode(tsZCB_Node *psNode);
 
 /****************************************************************************/
 /***        Local Functions                                               ***/
