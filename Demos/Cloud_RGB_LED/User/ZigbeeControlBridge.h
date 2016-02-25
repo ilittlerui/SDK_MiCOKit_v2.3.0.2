@@ -178,7 +178,8 @@ typedef enum
 {
     E_CHANNEL_AUTOMATIC     = 0,
     E_CHANNEL_MINIMUM       = 11,
-    E_CHANNEL_MAXIMUM       = 26
+    E_CHANNEL_MAXIMUM       = 26,
+    E_CHANNEL_DEFAULT		= CONFIG_DEFAULT_CHANNEL
 } teChannel;
 
 

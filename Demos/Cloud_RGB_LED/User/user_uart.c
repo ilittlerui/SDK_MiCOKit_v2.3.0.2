@@ -482,7 +482,7 @@ void ZCB_MessageHandle_thread(void *inContext)
                 case E_SL_MSG_RESTART_PROVISIONED:		//0x8006
                     user_uart_log("NoN Factory new Restart");
                     //非初始化重启
-                    //1.当前设备的状态:不在线  一个一个改??
+                    //当前设备的状态:不在线  一个一个改??
                     ePDM_UpdateNodeAliveStatus(0xFFFF);
                     ZCB_HandleRestartProvisioned(NULL,zcbReceivedMessageQueue[i].u16Length,zcbReceivedMessageQueue[i].au8Message);
                     zigbee_device_hasStart = 1;

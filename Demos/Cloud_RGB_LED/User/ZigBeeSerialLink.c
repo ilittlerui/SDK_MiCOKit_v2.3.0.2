@@ -83,7 +83,7 @@ int recv_buff_parser_ACK(char*buff);
 teSL_Status eSL_SendMessage(uint16_t u16Type, uint16_t u16Length, void *pvMessage, uint8_t *pu8SequenceNo)
 {
     teSL_Status eStatus;
-
+    teSL_Msg_Status teStatus;
     /* Make sure there is only one thread sending messages to the node at a time. */
     eStatus = eSL_WriteMessage(u16Type, u16Length, (uint8_t *)pvMessage);
     if (eStatus == E_SL_OK)
@@ -100,8 +100,8 @@ teSL_Status eSL_SendMessage(uint16_t u16Type, uint16_t u16Length, void *pvMessag
         if (eStatus == E_SL_OK)
         {
             user_ZigbeeSerialLink_log("Status: %d, Sequence %d", psStatus->eStatus, psStatus->u8SequenceNo);
-            eStatus = psStatus->eStatus;
-            if (eStatus == E_SL_OK)
+            teStatus = psStatus->eStatus;
+            if (teStatus == E_SL_MSG_STATUS_SUCCESS)
             {
                 if (pu8SequenceNo)
                 {
@@ -310,14 +310,14 @@ teSL_Status eSL_MessageWait(uint16_t u16Type, uint32_t u32WaitTimeout, uint16_t 
                         break;
                 }
                 user_ZigbeeSerialLink_log("get seq :%d,type:%d",actualSeq,u16Type);
-				
+
                 if((u32ZCB_CurrentWaitSeq == 0) || (actualSeq==u32ZCB_CurrentWaitSeq) || (actualSeq==(u32ZCB_CurrentWaitSeq+1))||(actualSeq==(u32ZCB_CurrentWaitSeq+2)))
                 {
                     user_ZigbeeSerialLink_log("certain Seq Ack get");
-					//user_ZigbeeSerialLink_log("del %d at %d",u16Type,i);
+                    //user_ZigbeeSerialLink_log("del %d at %d",u16Type,i);
                     *pu16Length = zcbReceivedMessageQueue[i].u16Length;
                     *ppvMessage = zcbReceivedMessageQueue[i].au8Message;
-					
+
                     zcbReceivedMessageQueue[i].u16Type = 0x00;	//del the msg
                     u32ZCB_CurrentWaitSeq = 0;
                     return E_SL_OK;

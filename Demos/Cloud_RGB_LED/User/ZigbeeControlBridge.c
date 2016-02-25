@@ -54,11 +54,11 @@ extern unsigned char gSetDeviceFlag;
 
 /** Mode */
 teStartMode      eStartMode          = CONFIG_DEFAULT_START_MODE;
-teChannel        eChannel            = CONFIG_DEFAULT_CHANNEL;
+teChannel        eChannel            = E_CHANNEL_DEFAULT;
 uint64_t         u64PanID            = CONFIG_DEFAULT_PANID;
 
 /* Network parameters in use */
-teChannel        eChannelInUse       = 0;
+teChannel        eChannelInUse       = E_CHANNEL_AUTOMATIC;
 uint64_t         u64PanIDInUse       = 0;
 uint16_t         u16PanIDInUse       = 0;
 
@@ -180,6 +180,7 @@ teZcbStatus eZCB_EstablishComms(void)
 teZcbStatus eZCB_FactoryNew(void)
 {
     teSL_Status eStatus;
+	teSL_Msg_Status teStatus;
     user_controlbridge_log("Factory resetting control bridge");
 
     if ((eStatus = eSL_SendMessage(E_SL_MSG_ERASE_PERSISTENT_DATA, 0, NULL, NULL)) != E_SL_OK)//Send Message
@@ -195,12 +196,11 @@ teZcbStatus eZCB_FactoryNew(void)
 
             if (eStatus == E_SL_OK)
             {
-                eStatus = psStatus->eStatus;
+                teStatus = psStatus->eStatus;
                 //if(psStatus != NULL)
                 //    free(psStatus);
             }
             else
-
             {
                 return E_ZCB_COMMS_FAILED;
             }

@@ -73,7 +73,6 @@ OSStatus user_main( app_context_t * const app_context )
     //try to connect ZCB
     eZCB_EstablishComms();
 
-
     while(1)
     {
         mico_thread_msleep(200);	//—” ±200ms
@@ -160,13 +159,13 @@ OSStatus user_main( app_context_t * const app_context )
                             eStatus = E_ZCB_OK;
                             eZCB_LogAllAttribute();
                         }
-						else if(strncmp((char*)"factorynew",(char*)json_object_get_string(val),json_object_get_string_len(val))==0)
-						{
-							user_log("factory new");
-							eZCB_Finish();
-							eZCB_Init();
-							eStatus = eZCB_FactoryNew();
-						}
+                        else if(strncmp((char*)"factorynew",(char*)json_object_get_string(val),json_object_get_string_len(val))==0)
+                        {
+                            user_log("factory new");
+                            eZCB_Finish();
+                            eZCB_Init();
+                            eStatus = eZCB_FactoryNew();
+                        }
                         else
                         {
                             user_log("err cmd");
